@@ -1,11 +1,12 @@
 import React from "react";
-import { useTailwind, TailwindProvider } from 'tailwindcss-react-native';
 import AppNavigator from "./app/navigation/AppNavigator";
+import { StatusBar } from "expo-status-bar";
 
 export default function App() {
   return (
-    <TailwindProvider>
+    <>
       <AppNavigator />
-    </TailwindProvider>
+      <StatusBar style="auto" />
+    </>
   );
 }
