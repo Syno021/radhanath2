@@ -13,7 +13,8 @@ import { RootStackParamList } from "../app/navigation/AppNavigator";
 import { useNavigation } from "@react-navigation/native";
 import styles from "../css/authStyles";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebaseCo";
+import { auth, db } from "../firebaseCo"; // ✅ db for Firestore
+import { doc, getDoc } from "firebase/firestore";
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -38,8 +39,28 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigation.navigate("UserTabs"); // ✅ Navigate on success
+      // ✅ Sign in
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // ✅ Fetch role from Firestore
+      const userDocRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+        Alert.alert("Error", "User data not found.");
+        return;
+      }
+
+      const role = userDoc.data().role;
+
+      // ✅ Navigate based on role
+      if (role === "admin") {
+        navigation.navigate("AdminTabs");
+      } else {
+        navigation.navigate("UserTabs");
+      }
+
     } catch (error: any) {
       Alert.alert("Error", error.message);
     } finally {

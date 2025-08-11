@@ -2,16 +2,17 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Dashboard from "../../screens/Dashboard";
+import Profile from "../../screens/Profile";
+import AdminManagement from "../../screens/AdminManagement";
 import { Ionicons } from "@expo/vector-icons";
 
 export type AdminTabParamList = {
   Dashboard: undefined;
-  Members: undefined;
-  Settings: undefined;
+  Profile: undefined;
+  AdminManagement: undefined;
 };
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
-const { TailwindProvider } = require("nativewind");
 
 export default function AdminTabs() {
   return (
@@ -20,13 +21,34 @@ export default function AdminTabs() {
         headerShown: false,
         tabBarActiveTintColor: "#FF8C42",
         tabBarStyle: { backgroundColor: "#FFF5E6" },
+        tabBarLabelStyle: { paddingBottom: 5 },
       }}
     >
       <Tab.Screen
         name="Dashboard"
         component={Dashboard}
         options={{
-          tabBarIcon: ({ color, size }) => <Ionicons name="analytics" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="analytics-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="AdminManagement"
+        component={AdminManagement}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={Profile}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" color={color} size={size} />
+          ),
         }}
       />
     </Tab.Navigator>

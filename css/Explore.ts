@@ -1,0 +1,78 @@
+// css/Explore.ts
+import { StyleSheet } from 'react-native';
+
+export default StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+  },
+  header: {
+    backgroundColor: '#FFF5E6',
+    height: 70,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  headerTitle: {
+    color: '#FF8C42',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  userInitials: {
+    backgroundColor: '#FF8C42',
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    overflow: 'hidden',
+  },
+  content: {
+    paddingTop: 90,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  cardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+  },
+  cardIcon: {
+    marginRight: 12,
+  },
+  cardText: {
+    color: '#333',
+    fontSize: 18,
+    fontWeight: '500',
+    flexShrink: 1,
+  },
+});

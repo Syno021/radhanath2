@@ -3,12 +3,14 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Home from "../../screens/Home";
 import Profile from "../../screens/Profile";
+import Explore from "../../screens/Explore";
 import { Ionicons } from "@expo/vector-icons";
 
 export type UserTabParamList = {
   Home: undefined;
   Sermons: undefined;
   Profile: undefined;
+  Explore: undefined;
 };
 
 const Tab = createBottomTabNavigator<UserTabParamList>();
@@ -28,6 +30,13 @@ export default function UserTabs() {
         component={Home}
         options={{
           tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} />,
+        }}
+      />
+      <Tab.Screen
+        name="Explore"
+        component={Explore}
+        options={{
+          tabBarIcon: ({ color, size }) => <Ionicons name="compass" color={color} size={size} />,
         }}
       />
       <Tab.Screen
