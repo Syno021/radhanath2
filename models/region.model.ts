@@ -1,4 +1,4 @@
-import { WhatsappGroup } from './whatsapp-group.model';
+import { WhatsappGroup } from './whatsappGroup.model';
 export interface Region {
   id: string;
   name: string;
@@ -8,7 +8,6 @@ export interface Region {
     longitude: number;
   };
   whatsappGroups: WhatsappGroup[];
-  templeWebsite?: string;
-  templeAddress?: string;
-  templePhone?: string;
+  ReadingClubs?: string[]; // Array of Reading Club IDs 
+  numberoftemples?: number;
 }

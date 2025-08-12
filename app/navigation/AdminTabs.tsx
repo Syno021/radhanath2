@@ -3,7 +3,7 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Dashboard from "../../screens/Dashboard";
 import Profile from "../../screens/Profile";
-import AdminManagement from "../../screens/AdminManagement";
+import AdminManagementStack from "./AdminManagementStack";
 import { Ionicons } from "@expo/vector-icons";
 
 export type AdminTabParamList = {
@@ -35,7 +35,7 @@ export default function AdminTabs() {
       />
       <Tab.Screen
         name="AdminManagement"
-        component={AdminManagement}
+        component={AdminManagementStack}
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="settings-outline" color={color} size={size} />

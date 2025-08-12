@@ -3,7 +3,7 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Home from "../../screens/Home";
 import Profile from "../../screens/Profile";
-import Explore from "../../screens/Explore";
+import ExploreStack from "../../app/navigation/ExploreStack";
 import { Ionicons } from "@expo/vector-icons";
 
 export type UserTabParamList = {
@@ -34,7 +34,7 @@ export default function UserTabs() {
       />
       <Tab.Screen
         name="Explore"
-        component={Explore}
+        component={ExploreStack}
         options={{
           tabBarIcon: ({ color, size }) => <Ionicons name="compass" color={color} size={size} />,
         }}

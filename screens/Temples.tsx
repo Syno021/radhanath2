@@ -7,12 +7,12 @@ export default function AdminBooks() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Ionicons name="book-outline" size={32} color="#FF8C42" />
-        <Text style={styles.headerText}>Add Books</Text>
+        <Text style={styles.headerText}>Temples</Text>
       </View>
       
       <View style={styles.content}>
         <Text style={styles.description}>
-          This is where you can manage and add new books to the system.
+          This is where you can see all temples.
         </Text>
         {/* Add your book management functionality here */}
       </View>
