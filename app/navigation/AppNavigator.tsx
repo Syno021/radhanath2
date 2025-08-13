@@ -7,6 +7,8 @@ import AdminTabs from "./AdminTabs";
 import Login from "../../screens/Login";
 import Register from "../../screens/Register";
 
+
+
 export type RootStackParamList = {
   Landing: undefined;
   Home: undefined;
@@ -14,6 +16,7 @@ export type RootStackParamList = {
   AdminTabs: undefined;
   Login: undefined;
   Register: undefined;
+  LoadBook: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -28,6 +31,7 @@ export default function AppNavigator() {
         <Stack.Screen name="AdminTabs" component={AdminTabs} />
         <Stack.Screen name="Login" component={Login} />
         <Stack.Screen name="Register" component={Register} />
+        
       </Stack.Navigator>
     </NavigationContainer>
   );

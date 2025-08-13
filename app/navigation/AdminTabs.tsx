@@ -4,12 +4,14 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Dashboard from "../../screens/Dashboard";
 import Profile from "../../screens/Profile";
 import AdminManagementStack from "./AdminManagementStack";
+
 import { Ionicons } from "@expo/vector-icons";
 
 export type AdminTabParamList = {
   Dashboard: undefined;
   Profile: undefined;
   AdminManagement: undefined;
+  LoadBook: undefined;
 };
 
 const Tab = createBottomTabNavigator<AdminTabParamList>();
@@ -42,6 +44,16 @@ export default function AdminTabs() {
           ),
         }}
       />
+      {/* <Tab.Screen
+        name="LoadBook"
+        component={LoadBook}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="book-outline" color={color} size={size} />
+          ),
+          tabBarLabel: "Books",
+        }}
+      /> */}
       <Tab.Screen
         name="Profile"
         component={Profile}
