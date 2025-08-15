@@ -5,6 +5,7 @@ import AdminBooks from "../../screens/AdminBooks";
 import AdminClubs from "../../screens/AdminClubs";
 import AdminGroups from "../../screens/AdminGroups";
 import AdminRdm from "../../screens/AdminRdm";
+import AdminUsers from "../../screens/AdminUsers";  
 
 export type AdminManagementStackParamList = {
   AdminManagementHome: undefined;
@@ -12,6 +13,7 @@ export type AdminManagementStackParamList = {
   AdminClubs: undefined;
   AdminGroups: undefined;
   AdminRdm: undefined; 
+  AdminUsers: undefined;
 };
 
 const Stack = createNativeStackNavigator<AdminManagementStackParamList>();
@@ -23,6 +25,11 @@ export default function AdminManagementStack() {
         name="AdminManagementHome" 
         component={AdminManagement}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="AdminUsers" 
+        component={AdminUsers}
+        options={{ title: "Manage Users" }} 
       />
       {/* <Stack.Screen 
         name="AdminBooks" 

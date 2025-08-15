@@ -1,13 +1,13 @@
-// pages/AdminClubs.tsx
 import React, { useEffect, useState } from 'react';
 import {
   addReadingClub,
   updateReadingClub,
   deleteReadingClub,
   getReadingClubs,
-  getRegions, // NEW
+  getRegions,
 } from '../services/ReadingClubService';
 import { ReadingClub } from '../models/ReadingClub.model';
+import { pageStyles } from '@/css/page';
 
 interface Region {
   id: string;
@@ -30,14 +30,14 @@ const defaultFormState: Omit<ReadingClub, 'id' | 'createdAt' | 'updatedAt'> = {
 
 const AdminClubs: React.FC = () => {
   const [clubs, setClubs] = useState<ReadingClub[]>([]);
-  const [regions, setRegions] = useState<Region[]>([]); // NEW
+  const [regions, setRegions] = useState<Region[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState(defaultFormState);
   const [editId, setEditId] = useState<string | null>(null);
 
   useEffect(() => {
     loadClubs();
-    loadRegions(); // NEW
+    loadRegions();
   }, []);
 
   const loadClubs = async () => {
@@ -128,18 +128,19 @@ const AdminClubs: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '1rem' }}>
-      <h1>Admin Reading Clubs</h1>
+    <div style={pageStyles.container}>
+      <h1 style={pageStyles.header}>Admin Reading Clubs</h1>
 
-      <button onClick={() => setShowForm((prev) => !prev)}>
+      <button style={pageStyles.button} onClick={() => setShowForm((prev) => !prev)}>
         {showForm ? 'Close Form' : 'Add Reading Club'}
       </button>
 
       {showForm && (
-        <form onSubmit={handleSubmit} style={{ marginTop: '1rem', border: '1px solid #ccc', padding: '1rem' }}>
+        <form onSubmit={handleSubmit} style={pageStyles.form}>
           <input
             name="name"
             placeholder="Club Name"
+            style={pageStyles.input}
             value={formData.name}
             onChange={handleChange}
             required
@@ -147,11 +148,17 @@ const AdminClubs: React.FC = () => {
           <textarea
             name="description"
             placeholder="Description"
+            style={pageStyles.input}
             value={formData.description}
             onChange={handleChange}
             required
           />
-          <select name="meetingType" value={formData.meetingType} onChange={handleChange}>
+          <select
+            name="meetingType"
+            style={pageStyles.select}
+            value={formData.meetingType}
+            onChange={handleChange}
+          >
             <option value="online">Online</option>
             <option value="in-person">In-Person</option>
             <option value="hybrid">Hybrid</option>
@@ -160,6 +167,7 @@ const AdminClubs: React.FC = () => {
           <input
             name="address"
             placeholder="Location Address"
+            style={pageStyles.input}
             value={formData.location?.address || ''}
             onChange={handleLocationChange}
           />
@@ -167,6 +175,7 @@ const AdminClubs: React.FC = () => {
             name="latitude"
             placeholder="Latitude"
             type="number"
+            style={pageStyles.input}
             value={formData.location?.latitude || 0}
             onChange={handleLocationChange}
           />
@@ -174,6 +183,7 @@ const AdminClubs: React.FC = () => {
             name="longitude"
             placeholder="Longitude"
             type="number"
+            style={pageStyles.input}
             value={formData.location?.longitude || 0}
             onChange={handleLocationChange}
           />
@@ -181,6 +191,7 @@ const AdminClubs: React.FC = () => {
           <input
             name="day"
             placeholder="Day"
+            style={pageStyles.input}
             value={formData.schedule.day}
             onChange={handleScheduleChange}
           />
@@ -188,11 +199,13 @@ const AdminClubs: React.FC = () => {
             name="time"
             placeholder="Time"
             type="time"
+            style={pageStyles.input}
             value={formData.schedule.time}
             onChange={handleScheduleChange}
           />
           <select
             name="frequency"
+            style={pageStyles.select}
             value={formData.schedule.frequency}
             onChange={handleScheduleChange}
           >
@@ -204,13 +217,14 @@ const AdminClubs: React.FC = () => {
           <input
             name="currentBook"
             placeholder="Current Book"
+            style={pageStyles.input}
             value={formData.currentBook || ''}
             onChange={handleChange}
           />
 
-          {/* NEW REGION SELECT */}
           <select
             name="regionId"
+            style={pageStyles.select}
             value={formData.regionId}
             onChange={handleChange}
             required
@@ -226,6 +240,7 @@ const AdminClubs: React.FC = () => {
           <input
             name="facilitatorName"
             placeholder="Facilitator Name"
+            style={pageStyles.input}
             value={formData.facilitator.name}
             onChange={(e) =>
               setFormData((prev) => ({
@@ -237,6 +252,7 @@ const AdminClubs: React.FC = () => {
           <input
             name="facilitatorContact"
             placeholder="Facilitator Contact"
+            style={pageStyles.input}
             value={formData.facilitator.contact}
             onChange={(e) =>
               setFormData((prev) => ({
@@ -246,22 +262,35 @@ const AdminClubs: React.FC = () => {
             }
           />
 
-          <button type="submit">{editId ? 'Update Club' : 'Add Club'}</button>
+          <button type="submit" style={pageStyles.button}>
+            {editId ? 'Update Club' : 'Add Club'}
+          </button>
         </form>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem', marginTop: '2rem' }}>
+      <div style={pageStyles.cardGrid}>
         {clubs.map((club) => (
-          <div key={club.id} style={{ border: '1px solid #ccc', padding: '1rem' }}>
-            <h3>{club.name}</h3>
-            <p>{club.description}</p>
-            <p><strong>Meeting Type:</strong> {club.meetingType}</p>
-            {club.location?.address && <p><strong>Location:</strong> {club.location.address}</p>}
-            <p><strong>Schedule:</strong> {club.schedule.day} at {club.schedule.time} ({club.schedule.frequency})</p>
-            {club.currentBook && <p><strong>Current Book:</strong> {club.currentBook}</p>}
-            <p><strong>Facilitator:</strong> {club.facilitator.name} ({club.facilitator.contact})</p>
-            <button onClick={() => handleEdit(club)}>Edit</button>
-            <button onClick={() => handleDelete(club.id)} style={{ marginLeft: '0.5rem', color: 'red' }}>
+          <div key={club.id} style={pageStyles.card}>
+            <h3 style={pageStyles.cardTitle}>{club.name}</h3>
+            <p style={pageStyles.cardText}>{club.description}</p>
+            <p style={pageStyles.cardText}><strong>Meeting Type:</strong> {club.meetingType}</p>
+            {club.location?.address && (
+              <p style={pageStyles.cardText}><strong>Location:</strong> {club.location.address}</p>
+            )}
+            <p style={pageStyles.cardText}>
+              <strong>Schedule:</strong> {club.schedule.day} at {club.schedule.time} ({club.schedule.frequency})
+            </p>
+            {club.currentBook && (
+              <p style={pageStyles.cardText}><strong>Current Book:</strong> {club.currentBook}</p>
+            )}
+            <p style={pageStyles.cardText}>
+              <strong>Facilitator:</strong> {club.facilitator.name} ({club.facilitator.contact})
+            </p>
+            <button style={pageStyles.buttonSecondary} onClick={() => handleEdit(club)}>Edit</button>
+            <button
+              style={{ ...pageStyles.buttonDanger, marginLeft: '0.5rem' }}
+              onClick={() => handleDelete(club.id)}
+            >
               Delete
             </button>
           </div>

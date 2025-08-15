@@ -36,7 +36,7 @@ export default function AdminManagement() {
         ))}
 
         {/* Manage Users full-width card */}
-        <TouchableOpacity style={styles.manageCard} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.manageCard} activeOpacity={0.8} onPress={() => navigation.navigate('AdminUsers')}>
           <View style={styles.cardIcon}>
             <Ionicons name="person-circle-outline" size={28} color="#FF8C42" />
           </View>

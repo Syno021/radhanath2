@@ -8,6 +8,7 @@ import {
 import { WhatsappGroup } from '../models/whatsappGroup.model';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebaseCo';
+import { pageStyles } from '@/css/page';
 
 const AdminGroups: React.FC = () => {
   const [groups, setGroups] = useState<WhatsappGroup[]>([]);
@@ -24,7 +25,6 @@ const AdminGroups: React.FC = () => {
   });
   const [error, setError] = useState('');
 
-  // Fetch groups & regions
   useEffect(() => {
     fetchGroups();
     fetchRegions();
@@ -44,7 +44,6 @@ const AdminGroups: React.FC = () => {
     setRegions(regionList);
   };
 
-  // Validate invite link
   const isValidLink = (link: string) => {
     const pattern = /^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+$/;
     return pattern.test(link);
@@ -112,93 +111,96 @@ const AdminGroups: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Admin - WhatsApp Groups</h2>
-      <button onClick={() => {
-        setShowForm(!showForm);
-        if (!showForm) {
-          setEditingGroup(null);
-          resetForm();
-        }
-      }}>
+    <div style={pageStyles.container}>
+      <h2 style={pageStyles.header}>Admin - WhatsApp Groups</h2>
+      <button
+        style={pageStyles.button}
+        onClick={() => {
+          setShowForm(!showForm);
+          if (!showForm) {
+            setEditingGroup(null);
+            resetForm();
+          }
+        }}
+      >
         {showForm ? 'Close Form' : 'Add WhatsApp Group'}
       </button>
 
       {showForm && (
-        <form onSubmit={handleSubmit} style={{ marginTop: '20px', border: '1px solid #ccc', padding: '15px' }}>
+        <form onSubmit={handleSubmit} style={pageStyles.form}>
           {error && <p style={{ color: 'red' }}>{error}</p>}
-          <div>
-            <label>Name*</label><br />
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
-          </div>
-          <div>
-            <label>Description</label><br />
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
-          <div>
-            <label>Invite Link*</label><br />
-            <input
-              type="text"
-              value={formData.inviteLink}
-              onChange={(e) => setFormData({ ...formData, inviteLink: e.target.value })}
-            />
-          </div>
-          <div>
-            <label>Region*</label><br />
-            <select
-              value={formData.regionId}
-              onChange={(e) => setFormData({ ...formData, regionId: e.target.value })}
-            >
-              <option value="">Select Region</option>
-              {regions.map((region) => (
-                <option key={region.id} value={region.id}>
-                  {region.name || region.id}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label>Member Count</label><br />
-            <input
-              type="number"
-              value={formData.memberCount || 0}
-              onChange={(e) => setFormData({ ...formData, memberCount: parseInt(e.target.value) || 0 })}
-            />
-          </div>
-          <div>
-            <label>Group Type</label><br />
-            <select
-              value={formData.groupType}
-              onChange={(e) => setFormData({ ...formData, groupType: e.target.value as WhatsappGroup['groupType'] })}
-            >
-              <option value="general">General</option>
-              <option value="book-study">Book Study</option>
-              <option value="events">Events</option>
-              <option value="seva">Seva</option>
-            </select>
-          </div>
-          <button type="submit">{editingGroup ? 'Update Group' : 'Add Group'}</button>
+          <input
+            type="text"
+            placeholder="Group Name"
+            style={pageStyles.input}
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          />
+          <textarea
+            placeholder="Description"
+            style={pageStyles.input}
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          />
+          <input
+            type="text"
+            placeholder="Invite Link"
+            style={pageStyles.input}
+            value={formData.inviteLink}
+            onChange={(e) => setFormData({ ...formData, inviteLink: e.target.value })}
+          />
+          <select
+            style={pageStyles.select}
+            value={formData.regionId}
+            onChange={(e) => setFormData({ ...formData, regionId: e.target.value })}
+          >
+            <option value="">Select Region</option>
+            {regions.map((region) => (
+              <option key={region.id} value={region.id}>
+                {region.name || region.id}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            placeholder="Member Count"
+            style={pageStyles.input}
+            value={formData.memberCount || 0}
+            onChange={(e) =>
+              setFormData({ ...formData, memberCount: parseInt(e.target.value) || 0 })
+            }
+          />
+          <select
+            style={pageStyles.select}
+            value={formData.groupType}
+            onChange={(e) =>
+              setFormData({ ...formData, groupType: e.target.value as WhatsappGroup['groupType'] })
+            }
+          >
+            <option value="general">General</option>
+            <option value="book-study">Book Study</option>
+            <option value="events">Events</option>
+            <option value="seva">Seva</option>
+          </select>
+          <button type="submit" style={pageStyles.button}>
+            {editingGroup ? 'Update Group' : 'Add Group'}
+          </button>
         </form>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '15px', marginTop: '30px' }}>
+      <div style={pageStyles.cardGrid}>
         {groups.map((group) => (
-          <div key={group.id} style={{ border: '1px solid #ccc', padding: '15px', borderRadius: '8px' }}>
-            <h4>{group.name}</h4>
-            <p>{group.description}</p>
-            <a href={group.inviteLink} target="_blank" rel="noopener noreferrer">Join Link</a>
-            <p><strong>Region:</strong> {group.regionId}</p>
-            <p><strong>Members:</strong> {group.memberCount || 0}</p>
-            <p><strong>Type:</strong> {group.groupType}</p>
-            <button onClick={() => handleEdit(group)}>Edit</button>
-            <button onClick={() => handleDelete(group.id)}>Delete</button>
+          <div key={group.id} style={pageStyles.card}>
+            <h4 style={pageStyles.cardTitle}>{group.name}</h4>
+            <p style={pageStyles.cardText}>{group.description}</p>
+            <a href={group.inviteLink} target="_blank" rel="noopener noreferrer">
+              Join Link
+            </a>
+            <p style={pageStyles.cardText}><strong>Region:</strong> {group.regionId}</p>
+            <p style={pageStyles.cardText}><strong>Members:</strong> {group.memberCount || 0}</p>
+            <p style={pageStyles.cardText}><strong>Type:</strong> {group.groupType}</p>
+            <button style={pageStyles.buttonSecondary} onClick={() => handleEdit(group)}>Edit</button>
+            <button style={{ ...pageStyles.buttonDanger, marginLeft: '0.5rem' }} onClick={() => handleDelete(group.id)}>Delete</button>
           </div>
         ))}
       </div>
