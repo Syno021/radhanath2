@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useScrollable, useHotReload, useScrollRestore } from '../services/ScrollableService';
+import {enhancedContainerStyles} from '../services/ScrollableService.css';
 import {
   addReadingClub,
   updateReadingClub,
@@ -29,16 +31,80 @@ const defaultFormState: Omit<ReadingClub, 'id' | 'createdAt' | 'updatedAt'> = {
 };
 
 const AdminClubs: React.FC = () => {
+
+  // Your existing call gets enhanced features automatically:
+const {
+  containerRef,
+  scrollToTop,
+  scrollToBottom, 
+  scrollToElement,
+  scrollToPosition, // NEW
+  isScrollable,
+  scrollPosition,
+  scrollPercentage, // NEW
+  isAtTop, // NEW  
+  isAtBottom, // NEW
+} = useScrollable({
+  enableSmoothScrolling: true,
+  customScrollbarStyles: true,
+  preventHorizontalScroll: true,
+  scrollThreshold: 50, // NEW - customize when isAtTop/isAtBottom trigger
+  saveScrollPosition: true, // NEW - auto-save scroll position
+}, 'admin_clubs');
+
+
+const [formData, setFormData, clearFormData] = useHotReload(
+    'admin_clubs_form',
+    defaultFormState
+  );
+
+  const [editId, setEditId, clearEditId] = useHotReload(
+    'admin_clubs_edit_id',
+    null as string | null
+  );
+
   const [clubs, setClubs] = useState<ReadingClub[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState(defaultFormState);
-  const [editId, setEditId] = useState<string | null>(null);
+  //const [editId, setEditId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");   // 🔎 search state
+  const [filteredClubs, setFilteredClubs] = useState<ReadingClub[]>([]);
+
 
   useEffect(() => {
     loadClubs();
     loadRegions();
   }, []);
+
+  useEffect(() => {
+    handleFilter(); // apply filter whenever clubs or searchTerm changes
+  }, [clubs, searchTerm]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleFilter = () => {
+    if (!searchTerm.trim()) {
+      setFilteredClubs(clubs);
+      return;
+    }
+    const term = searchTerm.toLowerCase();
+    const results = clubs.filter(
+      (club) =>
+        club.name.toLowerCase().includes(term) ||
+        club.description.toLowerCase().includes(term) ||
+        club.currentBook?.toLowerCase().includes(term) ||
+        club.facilitator.name.toLowerCase().includes(term)
+    );
+    setFilteredClubs(results);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleFilter();
+  };
 
   const loadClubs = async () => {
     try {
@@ -128,7 +194,112 @@ const AdminClubs: React.FC = () => {
   };
 
   return (
-    <div style={pageStyles.container}>
+    <div ref={containerRef} style={enhancedContainerStyles}>
+      {/* Optional: Add scroll progress bar */}
+      {isScrollable && (
+        <div className="scroll-progress">
+          <div 
+            className="scroll-progress-bar" 
+            style={{ width: `${scrollPercentage}%` }}
+          />
+        </div>
+      )}
+
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ 
+          position: 'sticky', 
+          top: 0, 
+          backgroundColor: 'white', 
+          zIndex: 10, 
+          paddingBottom: '1rem',
+          borderBottom: '1px solid #e0e0e0',
+          marginBottom: '1rem'
+        }}>
+          <h1 style={pageStyles.header}>Admin Reading Clubs</h1>
+          
+          {/* 🔎 Search Bar & Filter */}
+          <form
+            onSubmit={handleSearchSubmit}
+            style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}
+          >
+            <input
+              type="text"
+              placeholder="Search by name, description, book, facilitator..."
+              style={pageStyles.input}
+              value={searchTerm}
+              onChange={handleSearchChange}
+            />
+            <button type="submit" style={pageStyles.button}>
+              Search
+            </button>
+            <button
+              type="button"
+              style={pageStyles.buttonSecondary}
+              onClick={() => setSearchTerm("")}
+            >
+              Reset
+            </button>
+          </form>
+
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button 
+              style={pageStyles.button} 
+              onClick={() => setShowForm((prev) => !prev)}
+              disabled={loading}
+            >
+              {showForm ? 'Close Form' : 'Add Reading Club'}
+            </button>
+            
+            {/* Enhanced scroll buttons with more features */}
+            {isScrollable && (
+              <div className="scroll-buttons">
+                <button 
+                  className="scroll-button"
+                  onClick={scrollToTop}
+                  disabled={isAtTop}
+                  title="Scroll to top"
+                >
+                  ↑ Top
+                </button>
+                <button 
+                  className="scroll-button"
+                  onClick={scrollToBottom}
+                  disabled={isAtBottom}
+                  title="Scroll to bottom"
+                >
+                  ↓ Bottom
+                </button>
+                {/* New: Quick jump to form */}
+                {showForm && (
+                  <button 
+                    className="scroll-button"
+                    onClick={() => scrollToElement('club-form')}
+                    title="Jump to form"
+                  >
+                    → Form
+                  </button>
+                )}
+              </div>
+            )}
+            
+            {/* Enhanced status display */}
+            <div style={{ fontSize: '0.8rem', color: '#888', marginLeft: 'auto' }}>
+              Clubs: {clubs.length} | 
+              Scroll: {Math.round(scrollPercentage)}% | 
+              Pos: {Math.round(scrollPosition)}px
+              {isScrollable && (
+                <>
+                  {isAtTop && ' | At Top'}
+                  {isAtBottom && ' | At Bottom'}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Rest of your existing JSX remains the same */}
+        {/* ... */}
+        <div style={pageStyles.container}>
       <h1 style={pageStyles.header}>Admin Reading Clubs</h1>
 
       <button style={pageStyles.button} onClick={() => setShowForm((prev) => !prev)}>
@@ -268,35 +439,54 @@ const AdminClubs: React.FC = () => {
         </form>
       )}
 
-      <div style={pageStyles.cardGrid}>
-        {clubs.map((club) => (
-          <div key={club.id} style={pageStyles.card}>
-            <h3 style={pageStyles.cardTitle}>{club.name}</h3>
-            <p style={pageStyles.cardText}>{club.description}</p>
-            <p style={pageStyles.cardText}><strong>Meeting Type:</strong> {club.meetingType}</p>
-            {club.location?.address && (
-              <p style={pageStyles.cardText}><strong>Location:</strong> {club.location.address}</p>
-            )}
-            <p style={pageStyles.cardText}>
-              <strong>Schedule:</strong> {club.schedule.day} at {club.schedule.time} ({club.schedule.frequency})
-            </p>
-            {club.currentBook && (
-              <p style={pageStyles.cardText}><strong>Current Book:</strong> {club.currentBook}</p>
-            )}
-            <p style={pageStyles.cardText}>
-              <strong>Facilitator:</strong> {club.facilitator.name} ({club.facilitator.contact})
-            </p>
-            <button style={pageStyles.buttonSecondary} onClick={() => handleEdit(club)}>Edit</button>
-            <button
-              style={{ ...pageStyles.buttonDanger, marginLeft: '0.5rem' }}
-              onClick={() => handleDelete(club.id)}
-            >
-              Delete
-            </button>
+      {/* 📋 Render filtered list instead of all clubs */}
+          <div style={pageStyles.cardGrid}>
+            {filteredClubs.map((club) => (
+              <div key={club.id} style={pageStyles.card}>
+                <h3 style={pageStyles.cardTitle}>{club.name}</h3>
+                <p style={pageStyles.cardText}>{club.description}</p>
+                <p style={pageStyles.cardText}>
+                  <strong>Meeting Type:</strong> {club.meetingType}
+                </p>
+                {club.location?.address && (
+                  <p style={pageStyles.cardText}>
+                    <strong>Location:</strong> {club.location.address}
+                  </p>
+                )}
+                <p style={pageStyles.cardText}>
+                  <strong>Schedule:</strong> {club.schedule.day} at{" "}
+                  {club.schedule.time} ({club.schedule.frequency})
+                </p>
+                {club.currentBook && (
+                  <p style={pageStyles.cardText}>
+                    <strong>Current Book:</strong> {club.currentBook}
+                  </p>
+                )}
+                <p style={pageStyles.cardText}>
+                  <strong>Facilitator:</strong> {club.facilitator.name} (
+                  {club.facilitator.contact})
+                </p>
+                <button
+                  style={pageStyles.buttonSecondary}
+                  onClick={() => handleEdit(club)}
+                >
+                  Edit
+                </button>
+                <button
+                  style={{ ...pageStyles.buttonDanger, marginLeft: "0.5rem" }}
+                  onClick={() => handleDelete(club.id)}
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
       </div>
     </div>
+
+
+    
   );
 };
 
