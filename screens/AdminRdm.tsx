@@ -67,7 +67,7 @@ const AdminRegions: React.FC = () => {
     }
   };
 
-  // 🔍 Search function
+  // 🔍 Search function - updated to search by reading club count instead of IDs
   const handleSearch = () => {
     if (!searchTerm.trim()) {
       setFilteredRegions(regions);
@@ -76,7 +76,8 @@ const AdminRegions: React.FC = () => {
     const filtered = regions.filter((region) =>
       region.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       region.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      region.ReadingClubs?.some(club => club.toLowerCase().includes(searchTerm.toLowerCase()))
+      // You can still search by reading club count if needed
+      (region.ReadingClubs?.length || 0).toString().includes(searchTerm)
     );
     setFilteredRegions(filtered);
   };
@@ -153,6 +154,11 @@ const AdminRegions: React.FC = () => {
     if (!showForm) resetForm(); // clear form on open
   };
 
+  // Helper function to get reading club count
+  const getReadingClubCount = (region: Region): number => {
+    return region.ReadingClubs?.length || 0;
+  };
+
   return (
     <div ref={containerRef} style={enhancedContainerStyles}>
       {isScrollable && (
@@ -181,7 +187,7 @@ const AdminRegions: React.FC = () => {
             <input
               style={pageStyles.input}
               type="text"
-              placeholder="Search regions..."
+              placeholder="Search regions by name, description, or reading club count..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -229,7 +235,7 @@ const AdminRegions: React.FC = () => {
             )}
             
             <div style={{ fontSize: '0.8rem', color: '#888', marginLeft: 'auto' }}>
-              Groups: {regions.length} | 
+              Regions: {regions.length} | 
               Scroll: {Math.round(scrollPercentage)}% | 
               Pos: {Math.round(scrollPosition)}px
               {isScrollable && (
@@ -272,12 +278,14 @@ const AdminRegions: React.FC = () => {
               <div key={region.id} style={pageStyles.card}>
                 <h3 style={pageStyles.cardTitle}>{region.name}</h3>
                 <p style={pageStyles.cardText}>{region.description}</p>
-                <p style={pageStyles.cardText}> {region.location.latitude}, {region.location.longitude}</p>
-                <p style={pageStyles.cardText}>Temples: {region.numberoftemples ?? 'N/A'}</p>
-                <p style={pageStyles.cardText}>WhatsApp Groups: {region.whatsappGroups?.length || 0}</p>
-                <p style={pageStyles.cardText}>Reading Clubs: {region.ReadingClubs?.join(', ') || 'None'}</p>
-                <button style={pageStyles.buttonSecondary} onClick={() => handleEdit(region)}>Edit</button>
-                <button style={pageStyles.buttonDanger} onClick={() => handleDelete(region.id)}>Delete</button>
+                <p style={pageStyles.cardText}>📍 {region.location.latitude}, {region.location.longitude}</p>
+                <p style={pageStyles.cardText}>🏛️ Temples: {region.numberoftemples ?? 'N/A'}</p>
+                <p style={pageStyles.cardText}>💬 WhatsApp Groups: {region.whatsappGroups?.length || 0}</p>
+                <p style={pageStyles.cardText}>📚 Reading Clubs: {getReadingClubCount(region)}</p>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                  <button style={pageStyles.buttonSecondary} onClick={() => handleEdit(region)}>Edit</button>
+                  <button style={pageStyles.buttonDanger} onClick={() => handleDelete(region.id)}>Delete</button>
+                </div>
               </div>
             ))}
           </div>
