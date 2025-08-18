@@ -46,6 +46,13 @@ export default function AdminManagement() {
       route: 'AdminClubs',
       emoji: '📖'
     },
+    { 
+      label: 'Manage Temples', 
+      subtitle: 'Organize spiritual centers',
+      icon: 'home-outline', 
+      route: 'AdminTemples',
+      emoji: '🏛️'
+    }
   ] as const;
 
   return (
