@@ -10,7 +10,9 @@ import {
   TextInput,
   Linking,
   ActivityIndicator,
-  StatusBar
+  StatusBar,
+  ScrollView,
+  useWindowDimensions
 } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from '@react-native-picker/picker';
@@ -51,6 +53,10 @@ export default function Books() {
   const [categories, setCategories] = useState<string[]>([]);
   const [languages, setLanguages] = useState<string[]>([]);
   const [formats, setFormats] = useState<string[]>([]);
+  
+  const { width } = useWindowDimensions();
+  const isTablet = width > 768;
+  const cardWidth = isTablet ? (width - 60) / 3 : (width - 48) / 2;
 
   useEffect(() => {
     fetchBooks();
@@ -99,6 +105,15 @@ export default function Books() {
     }
   };
 
+  const clearAllFilters = () => {
+    setFilters({
+      category: '',
+      language: '',
+      format: '',
+      searchText: ''
+    });
+  };
+
   const filteredBooks = books.filter(book => {
     const matchesCategory = !filters.category || book.category === filters.category;
     const matchesLanguage = !filters.language || book.language === filters.language;
@@ -110,42 +125,92 @@ export default function Books() {
     return matchesCategory && matchesLanguage && matchesFormat && matchesSearch;
   });
 
+  const getFormatColor = (format?: string) => {
+    switch (format) {
+      case 'PDF': return '#FF6B00';
+      case 'EPUB': return '#10B981';
+      case 'HTML': return '#3B82F6';
+      case 'Audio': return '#8B5CF6';
+      default: return '#FF6B00';
+    }
+  };
+
   const renderBookCard = ({ item: book }: { item: Book }) => (
     <TouchableOpacity 
-      style={styles.bookCard}
-      activeOpacity={0.9}
+      style={[styles.bookCard, { width: cardWidth }]}
+      activeOpacity={0.85}
       onPress={() => handleReadBook(book.bbtMediaLink)}
     >
-      <Image 
-        source={require('../assets/images/book.png')} 
-        style={styles.bookImage}
-      />
-      <View style={styles.bookInfo}>
-        <Text style={styles.bookTitle} numberOfLines={2}>{book.title}</Text>
-        <Text style={styles.bookAuthor} numberOfLines={1}>by {book.author}</Text>
+      {/* Book Image Container */}
+      <View style={styles.imageContainer}>
+        <Image 
+          source={require('../assets/images/book.png')} 
+          style={styles.bookImage}
+        />
         
-        {book.category && (
-          <Text style={styles.bookCategory}>{book.category}</Text>
-        )}
-        
-        <View style={styles.ratingContainer}>
-          {[1, 2, 3, 4, 5].map((star) => (
-            <Ionicons
-              key={star}
-              name={star <= (book.rating || 0) ? "star" : "star-outline"}
-              size={16}
-              color="#FF6B00"
-            />
-          ))}
-          <Text style={styles.ratingText}>{book.rating || 0}/5</Text>
+        {/* Format Badge */}
+        <View style={[styles.formatBadge, { backgroundColor: getFormatColor(book.format) }]}>
+          <Text style={styles.formatText}>{book.format || 'PDF'}</Text>
         </View>
 
-        {book.bbtMediaLink && (
-          <View style={styles.readButton}>
-            <Ionicons name="book-outline" size={16} color="#FFFFFF" />
-            <Text style={styles.readButtonText}>Read Now</Text>
-          </View>
+        {/* Favorite Badge */}
+        {book.isFavorite && (
+          <TouchableOpacity style={styles.favoriteButton}>
+            <Ionicons name="heart" size={16} color="#FF4757" />
+          </TouchableOpacity>
         )}
+
+        {/* Quick Action Overlay */}
+        <View style={styles.quickActions}>
+          <TouchableOpacity style={styles.quickActionButton}>
+            <Ionicons name="eye-outline" size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickActionButton}>
+            <Ionicons name="bookmark-outline" size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Book Details */}
+      <View style={styles.bookDetails}>
+        {/* Category */}
+        {book.category && (
+          <Text style={styles.categoryLabel}>{book.category}</Text>
+        )}
+
+        {/* Title */}
+        <Text style={styles.bookTitle} numberOfLines={2}>
+          {book.title}
+        </Text>
+
+        {/* Author */}
+        <Text style={styles.bookAuthor} numberOfLines={1}>
+          by {book.author}
+        </Text>
+
+        {/* Rating */}
+        <View style={styles.ratingRow}>
+          <View style={styles.starsContainer}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Ionicons
+                key={star}
+                name={star <= (book.rating || 0) ? "star" : "star-outline"}
+                size={12}
+                color="#FFD700"
+              />
+            ))}
+          </View>
+          <Text style={styles.ratingCount}>({book.rating || 0})</Text>
+        </View>
+
+        {/* Action Button */}
+        <TouchableOpacity 
+          style={[styles.actionButton, { backgroundColor: getFormatColor(book.format) }]}
+          onPress={() => handleReadBook(book.bbtMediaLink)}
+        >
+          <Ionicons name="download-outline" size={14} color="#FFFFFF" />
+          <Text style={styles.actionButtonText}>Read Now</Text>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -154,85 +219,149 @@ export default function Books() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FF6B00" />
+        <Text style={styles.loadingText}>Loading Books...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FDFCFA" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
+      {/* Header */}
       <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Ionicons name="book-outline" size={32} color="#FF6B00" />
-          <Text style={styles.headerText}>Books</Text>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.headerTitle}>Sacred Books</Text>
+            <Text style={styles.headerSubtitle}>{books.length} books available</Text>
+          </View>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.headerAction}>
+            <Ionicons name="grid-outline" size={20} color="#666" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerAction}>
+            <Ionicons name="heart-outline" size={20} color="#666" />
+          </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.filtersContainer}>
+      {/* Fixed Filters */}
+      <View style={styles.filtersSection}>
+        {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#999" />
+          <Ionicons name="search" size={18} color="#999" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search books..."
+            placeholder="Search books, authors..."
             placeholderTextColor="#999"
             value={filters.searchText}
             onChangeText={(text) => setFilters(prev => ({ ...prev, searchText: text }))}
           />
+          {filters.searchText.length > 0 && (
+            <TouchableOpacity onPress={() => setFilters(prev => ({ ...prev, searchText: '' }))}>
+              <Ionicons name="close" size={18} color="#999" />
+            </TouchableOpacity>
+          )}
         </View>
 
-        <View style={styles.filterRow}>
-          <View style={styles.filterPicker}>
+        {/* Filter Pills */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filtersRow}
+        >
+          {/* Category Filter */}
+          <View style={styles.filterPill}>
+            <Ionicons name="library-outline" size={14} color="#FF6B00" />
             <Picker
               selectedValue={filters.category}
               onValueChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
-              style={styles.pickerStyle}
+              style={styles.pillPicker}
             >
-              <Picker.Item label="All Categories" value="" />
+              <Picker.Item label="Category" value="" />
               {categories.map(category => (
                 <Picker.Item key={category} label={category} value={category} />
               ))}
             </Picker>
           </View>
 
-          <View style={styles.filterPicker}>
+          {/* Language Filter */}
+          <View style={styles.filterPill}>
+            <Ionicons name="language-outline" size={14} color="#FF6B00" />
             <Picker
               selectedValue={filters.language}
               onValueChange={(value) => setFilters(prev => ({ ...prev, language: value }))}
-              style={styles.pickerStyle}
+              style={styles.pillPicker}
             >
-              <Picker.Item label="All Languages" value="" />
+              <Picker.Item label="Language" value="" />
               {languages.map(language => (
                 <Picker.Item key={language} label={language} value={language} />
               ))}
             </Picker>
           </View>
 
-          <View style={styles.filterPicker}>
+          {/* Format Filter */}
+          <View style={styles.filterPill}>
+            <Ionicons name="document-outline" size={14} color="#FF6B00" />
             <Picker
               selectedValue={filters.format}
               onValueChange={(value) => setFilters(prev => ({ ...prev, format: value }))}
-              style={styles.pickerStyle}
+              style={styles.pillPicker}
             >
-              <Picker.Item label="All Formats" value="" />
+              <Picker.Item label="Format" value="" />
               {formats.map(format => (
                 <Picker.Item key={format} label={format} value={format} />
               ))}
             </Picker>
           </View>
-        </View>
+
+          {/* Clear All Filter */}
+          {(filters.category || filters.language || filters.format) && (
+            <TouchableOpacity style={styles.clearAllPill} onPress={clearAllFilters}>
+              <Ionicons name="close" size={14} color="#FFFFFF" />
+              <Text style={styles.clearAllText}>Clear All</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
       </View>
 
+      {/* Results Header */}
+      <View style={styles.resultsHeader}>
+        <Text style={styles.resultsCount}>
+          {filteredBooks.length} Results
+        </Text>
+        <TouchableOpacity style={styles.sortButton}>
+          <Text style={styles.sortText}>Sort by</Text>
+          <Ionicons name="chevron-down" size={16} color="#666" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Books Grid */}
       <FlatList
         data={filteredBooks}
         renderItem={renderBookCard}
         keyExtractor={(item) => item.id}
-        numColumns={2}
-        contentContainerStyle={styles.bookGrid}
+        numColumns={isTablet ? 3 : 2}
+        contentContainerStyle={styles.booksList}
         showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+        columnWrapperStyle={isTablet || !isTablet ? styles.row : null}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No books found</Text>
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="book-outline" size={48} color="#E5E5E5" />
+            </View>
+            <Text style={styles.emptyTitle}>No books found</Text>
+            <Text style={styles.emptyMessage}>
+              Try adjusting your search or filter criteria
+            </Text>
+            <TouchableOpacity style={styles.emptyAction} onPress={clearAllFilters}>
+              <Text style={styles.emptyActionText}>Clear All Filters</Text>
+            </TouchableOpacity>
           </View>
         }
       />
@@ -243,156 +372,309 @@ export default function Books() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FDFCFA',
+    backgroundColor: '#F8F9FA',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FDFCFA',
+    backgroundColor: '#F8F9FA',
   },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '400',
+  },
+
+  // Header Styles
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FDFCFA',
+    paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 16,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#FFE4CC',
+    borderBottomColor: '#E5E5E5',
   },
-  headerText: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginLeft: 10,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
     color: '#1A1A1A',
-    letterSpacing: 0.3,
   },
-  filtersContainer: {
-    paddingHorizontal: 24,
-    paddingVertical: 15,
-    backgroundColor: '#FDFCFA',
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerAction: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Filters Section
+  filtersSection: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#FFE4CC',
+    borderBottomColor: '#E5E5E5',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F5F5F5',
     borderRadius: 12,
     paddingHorizontal: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    height: 44,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    fontSize: 16,
+    fontSize: 15,
     color: '#1A1A1A',
-    fontWeight: '300',
+    marginLeft: 8,
   },
-  filterRow: {
+  filtersRow: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 20,
+    paddingLeft: 12,
+    height: 36,
+    minWidth: 100,
+  },
+  pillPicker: {
+    color: '#1A1A1A',
+    fontSize: 13,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  clearAllPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF6B00',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    height: 36,
+    gap: 4,
+  },
+  clearAllText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // Results Header
+  resultsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
-  },
-  filterPicker: {
-    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
   },
-  pickerStyle: {
+  resultsCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  sortText: {
+    fontSize: 14,
     color: '#666',
-    fontWeight: '300',
+    fontWeight: '500',
   },
-  bookGrid: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    paddingBottom: 40,
+
+  // Books List
+  booksList: {
+    padding: 16,
+    paddingBottom: 80,
+  },
+  row: {
+    justifyContent: 'space-between',
   },
   bookCard: {
-    flex: 1,
-    margin: 8,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    overflow: 'hidden',
+    marginBottom: 16,
     elevation: 2,
-    shadowColor: '#FF6B00',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
+    overflow: 'hidden',
+  },
+
+  // Book Card Image
+  imageContainer: {
+    position: 'relative',
   },
   bookImage: {
     width: '100%',
-    height: 180,
+    height: 140,
     resizeMode: 'cover',
   },
-  bookInfo: {
-    padding: 16,
+  formatBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  formatText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  favoriteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActions: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    flexDirection: 'row',
+    gap: 6,
+  },
+  quickActionButton: {
+    width: 28,
+    height: 28,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Book Details
+  bookDetails: {
+    padding: 12,
+  },
+  categoryLabel: {
+    fontSize: 10,
+    color: '#FF6B00',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   bookTitle: {
-    fontSize: 16,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '700',
     color: '#1A1A1A',
+    lineHeight: 18,
     marginBottom: 4,
-    lineHeight: 20,
   },
   bookAuthor: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-    fontWeight: '300',
-  },
-  bookCategory: {
     fontSize: 12,
-    color: '#FF6B00',
-    backgroundColor: '#FFF4E6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 16,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
+    color: '#666',
     fontWeight: '400',
+    marginBottom: 6,
   },
-  ratingContainer: {
+  ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  ratingText: {
-    marginLeft: 4,
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '300',
+  starsContainer: {
+    flexDirection: 'row',
+    marginRight: 4,
   },
-  readButton: {
+  ratingCount: {
+    fontSize: 11,
+    color: '#999',
+    fontWeight: '500',
+  },
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FF6B00',
     paddingVertical: 8,
-    paddingHorizontal: 12,
     borderRadius: 8,
-    gap: 6,
+    gap: 4,
   },
-  readButtonText: {
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 8,
+  },
+  emptyMessage: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  emptyAction: {
+    backgroundColor: '#FF6B00',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  emptyActionText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '500',
-  },
-  emptyContainer: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '300',
+    fontWeight: '600',
   },
 });
