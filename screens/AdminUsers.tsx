@@ -7,6 +7,7 @@ import { db } from "../firebaseCo";
 import { User } from "../models/user.model";
 import UserService from "../services/userService";
 import { styles } from "../css/adminUsers.styles";
+  import { Platform, Dimensions } from 'react-native';
 
 const AdminUsers: React.FC = () => {
 
@@ -43,12 +44,26 @@ const AdminUsers: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   /** Check if mobile view */
-  useEffect(() => {
+
+
+useEffect(() => {
+  if (Platform.OS === 'web') {
     const checkMobile = () => setIsMobile(window.innerWidth <= 768);
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
-  }, []);
+  } else {
+    // React Native
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setIsMobile(window.width <= 768);
+    });
+    
+    const { width } = Dimensions.get('window');
+    setIsMobile(width <= 768);
+    
+    return () => subscription?.remove();
+  }
+}, []);
 
   /** Fetch users */
   const fetchUsers = async () => {
