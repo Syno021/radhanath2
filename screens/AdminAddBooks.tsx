@@ -2,17 +2,17 @@ import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 
-export default function AdminBooks() {
+export default function AdminAddBooks() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Ionicons name="book-outline" size={32} color="#FF8C42" />
-        <Text style={styles.headerText}>Temples</Text>
+        <Text style={styles.headerText}>Add Books</Text>
       </View>
       
       <View style={styles.content}>
         <Text style={styles.description}>
-          This is where you can see all temples.
+          This is where you can add books
         </Text>
         {/* Add your book management functionality here */}
       </View>
