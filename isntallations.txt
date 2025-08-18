@@ -6,3 +6,12 @@ expo install expo-document-picker
 
 
 npm install react-native-document-picker
+
+# UUID for generating unique IDs
+npm install uuid
+npm install --save-dev @types/uuid
+
+
+
+
+expo install expo-file-system expo-sharing
