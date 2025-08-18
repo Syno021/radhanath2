@@ -25,12 +25,60 @@ import {
   deleteDoc
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
+import * as DocumentPicker from 'expo-document-picker';
 
-// Conditional imports
-let DocumentPicker: any = null;
-if (Platform.OS !== 'web') {
-  DocumentPicker = require('react-native-document-picker');
-}
+// Expo-compatible document picker
+const getDocumentPicker = async () => {
+  if (Platform.OS === 'web') {
+    return null; // Web file selection handled separately
+  } else {
+    try {
+      return {
+        pickSingle: async () => {
+          const result = await DocumentPicker.getDocumentAsync({
+            type: [
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              'application/vnd.ms-excel'
+            ],
+            copyToCacheDirectory: true,
+            multiple: false
+          });
+          
+          if (!result.canceled && result.assets && result.assets.length > 0) {
+            const asset = result.assets[0];
+            return {
+              name: asset.name,
+              uri: asset.uri,
+              type: asset.mimeType,
+              size: asset.size
+            };
+          }
+          throw new Error('User cancelled');
+        },
+        isCancel: (error: any) => error.message === 'User cancelled'
+      };
+    } catch (error) {
+      console.warn('Document picker error:', error);
+      return null;
+    }
+  }
+};
+
+const getXLSX = async () => {
+  try {
+    if (Platform.OS === 'web') {
+      const xlsx = await import('xlsx');
+      return xlsx;
+    } else {
+      // For Expo/React Native, use require
+      const xlsx = require('xlsx');
+      return xlsx;
+    }
+  } catch (error) {
+    console.error('Failed to load XLSX:', error);
+    return null;
+  }
+};
 
 interface BookEntry {
   title: string;
@@ -52,6 +100,14 @@ interface MonthlyReport {
   fileName: string;
 }
 
+interface FileInfo {
+  name: string;
+  uri?: string;
+  file?: File; // For web
+  type?: string;
+  size?: number;
+}
+
 export default function AdminBooks() {
   const navigation = useNavigation();
   
@@ -61,8 +117,11 @@ export default function AdminBooks() {
   const [user, setUser] = useState<any>(null);
   const [processedData, setProcessedData] = useState<BookEntry[]>([]);
   const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([]);
-  const [selectedFile, setSelectedFile] = useState<any>(null);
-  const [XLSXRef, setXLSXRef] = useState<any>(null);
+  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
+  const [documentPicker, setDocumentPicker] = useState<any>(null);
+  const [xlsxLib, setXlsxLib] = useState<any>(null);
+  const [librariesReady, setLibrariesReady] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
 
   // BBT Book points
   const BBT_PUBLISHERS = ['BBT', 'Bhaktivedanta Book Trust'];
@@ -115,16 +174,47 @@ export default function AdminBooks() {
     if (isAuthorized) fetchMonthlyReports();
   }, [isAuthorized]);
 
+  // Initialize document picker and XLSX library
   useEffect(() => {
-    async function loadXLSX() {
-      if (Platform.OS === 'web') {
-        const xlsxModule = await import('xlsx');
-        setXLSXRef(xlsxModule);
-      } else {
-        setXLSXRef(require('xlsx'));
+    const initializeLibraries = async () => {
+      try {
+        setInitError(null);
+        
+        const [docPicker, xlsx] = await Promise.all([
+          getDocumentPicker(),
+          getXLSX()
+        ]);
+        
+        if (!xlsx) {
+          throw new Error('XLSX library failed to load');
+        }
+        
+        setDocumentPicker(docPicker);
+        setXlsxLib(xlsx);
+        setLibrariesReady(true);
+        
+        // Show info if document picker is not available
+        if (Platform.OS !== 'web' && !docPicker) {
+          setInitError('Document picker not available. Please install expo-document-picker.');
+          
+          // Show helpful alert
+          setTimeout(() => {
+            Alert.alert(
+              'Setup Info',
+              'To use file selection, install: expo install expo-document-picker',
+              [{ text: 'OK' }]
+            );
+          }, 1000);
+        }
+        
+      } catch (error) {
+        console.error('Failed to initialize libraries:', error);
+        setInitError(`Failed to initialize: ${error.message}`);
+        setLibrariesReady(true); // Still set to true so UI shows
       }
-    }
-    loadXLSX();
+    };
+
+    initializeLibraries();
   }, []);
 
   const checkUserAuthorization = async (uid: string) => {
@@ -166,87 +256,273 @@ export default function AdminBooks() {
     }
   };
 
-  const selectDocument = async () => {
-    if (Platform.OS === 'web') {
+  // Web file selection handler
+  const selectFileWeb = (): Promise<FileInfo | null> => {
+    return new Promise((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = '.xlsx,.xls';
+      input.style.display = 'none';
       
-      input.onchange = async (event: any) => {
+      input.onchange = (event: any) => {
         const file = event.target.files?.[0];
         if (file) {
-          setSelectedFile({ name: file.name, uri: file });
-          await processExcelFile(file);
+          // Validate file type
+          const validTypes = [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-excel'
+          ];
+          
+          if (validTypes.includes(file.type) || file.name.match(/\.(xlsx|xls)$/i)) {
+            resolve({ 
+              name: file.name, 
+              file,
+              type: file.type,
+              size: file.size 
+            });
+          } else {
+            Alert.alert('Error', 'Please select a valid Excel file (.xlsx or .xls)');
+            resolve(null);
+          }
+        } else {
+          resolve(null);
         }
+        document.body.removeChild(input);
       };
+      
+      input.oncancel = () => {
+        document.body.removeChild(input);
+        resolve(null);
+      };
+      
+      document.body.appendChild(input);
       input.click();
-    } else {
-      try {
-        const result = await DocumentPicker.pickSingle({
-          type: [DocumentPicker.types.xlsx, DocumentPicker.types.xls],
-        });
-        setSelectedFile(result);
-        await processExcelFile(result);
-      } catch (error) {
-        if (!DocumentPicker.isCancel(error)) {
-          Alert.alert("Error", "Failed to select document");
+    });
+  };
+
+  // Mobile file selection handler using Expo Document Picker
+  const selectFileMobile = async (): Promise<FileInfo | null> => {
+    if (!documentPicker) {
+      Alert.alert(
+        'Feature Unavailable', 
+        'Document picker is not available. Please install expo-document-picker:\n\nexpo install expo-document-picker',
+        [
+          { 
+            text: 'Copy Command', 
+            onPress: () => {
+              // Note: Clipboard API might not be available in all environments
+              console.log('Command to copy: expo install expo-document-picker');
+            }
+          },
+          { text: 'Cancel', style: 'cancel' }
+        ]
+      );
+      return null;
+    }
+
+    try {
+      const result = await documentPicker.pickSingle({
+        type: [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-excel'
+        ]
+      });
+
+      // Validate the result
+      if (result && result.name && result.uri) {
+        return result;
+      } else {
+        Alert.alert('Error', 'Invalid file selected');
+        return null;
+      }
+    } catch (error: any) {
+      if (documentPicker.isCancel && documentPicker.isCancel(error)) {
+        // User cancelled - this is fine
+        return null;
+      } else {
+        console.error('Document picker error:', error);
+        
+        let errorMessage = 'Failed to select file';
+        if (error.message && !error.message.includes('cancelled')) {
+          errorMessage += ': ' + error.message;
         }
+        
+        if (errorMessage !== 'Failed to select file') {
+          Alert.alert('Error', errorMessage);
+        }
+        return null;
       }
     }
   };
 
-  const processExcelFile = async (file: any) => {
+  const selectDocument = async () => {
+    if (!xlsxLib) {
+      Alert.alert('Error', 'Excel processor not ready. Please try again.');
+      return;
+    }
+
+    try {
+      let fileInfo: FileInfo | null = null;
+
+      if (Platform.OS === 'web') {
+        fileInfo = await selectFileWeb();
+      } else {
+        fileInfo = await selectFileMobile();
+      }
+
+      if (fileInfo) {
+        setSelectedFile(fileInfo);
+        await processExcelFile(fileInfo);
+      }
+    } catch (error) {
+      console.error('File selection error:', error);
+      Alert.alert('Error', 'Failed to select document');
+    }
+  };
+
+  const processExcelFile = async (fileInfo: FileInfo) => {
+    if (!xlsxLib) {
+      Alert.alert('Error', 'Excel processor not available');
+      return;
+    }
+
     setLoading(true);
     try {
-      if (!XLSXRef) {
-        throw new Error("Excel processor not loaded");
-      }
+      let buffer: ArrayBuffer;
 
-      let buffer;
-      if (Platform.OS === 'web') {
-        buffer = await file.arrayBuffer();
+      if (Platform.OS === 'web' && fileInfo.file) {
+        // Web file handling
+        buffer = await fileInfo.file.arrayBuffer();
+      } else if (fileInfo.uri) {
+        // Mobile file handling with Expo
+        try {
+          const response = await fetch(fileInfo.uri);
+          if (!response.ok) {
+            throw new Error(`Failed to read file: ${response.status} ${response.statusText}`);
+          }
+          buffer = await response.arrayBuffer();
+        } catch (fetchError) {
+          console.error('Fetch error:', fetchError);
+          throw new Error('Failed to read the selected file. Please try selecting it again.');
+        }
       } else {
-        const response = await fetch(file.uri);
-        buffer = await response.arrayBuffer();
+        throw new Error('No valid file source available');
       }
 
-      const workbook = XLSXRef.read(buffer, { type: 'array' });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSXRef.utils.sheet_to_json(worksheet);
+      // Validate buffer
+      if (!buffer || buffer.byteLength === 0) {
+        throw new Error('The selected file appears to be empty or corrupted');
+      }
 
-      const processedBooks = processBookData(jsonData);
-      setProcessedData(processedBooks);
+      // Process the Excel file
+      const workbook = xlsxLib.read(buffer, { 
+        type: 'array',
+        cellDates: true,
+        cellNF: false,
+        cellText: false
+      });
+
+      if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+        throw new Error('No sheets found in the Excel file');
+      }
+
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      if (!worksheet) {
+        throw new Error('Cannot read the first sheet');
+      }
+
+      // Convert to objects using the first row as headers
+      const objectData = xlsxLib.utils.sheet_to_json(worksheet, {
+        defval: '',
+        blankrows: false
+      });
+
+      if (!objectData || objectData.length === 0) {
+        throw new Error('No data found in the Excel file. Please check that the sheet contains data.');
+      }
+
+      const processedBooks = processBookData(objectData);
       
-      Alert.alert("Success", `Processed ${processedBooks.length} books`);
-    } catch (error) {
-      Alert.alert("Error", "Failed to process Excel file");
+      if (processedBooks.length === 0) {
+        Alert.alert(
+          'No Valid Data Found', 
+          'No valid book entries found in the file. Please ensure your Excel file has columns like:\n• Book Title or Title\n• Quantity or Qty\n• Publisher (optional)'
+        );
+      } else {
+        setProcessedData(processedBooks);
+        Alert.alert('Success', `Processed ${processedBooks.length} book entries successfully!`);
+      }
+
+    } catch (error: any) {
+      console.error('Excel processing error:', error);
+      let errorMessage = 'Failed to process Excel file';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Processing Error', errorMessage);
+      setSelectedFile(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const processBookData = (jsonData: any[]) => {
+  const processBookData = (jsonData: any[]): BookEntry[] => {
     const books: BookEntry[] = [];
 
-    jsonData.forEach((row: any) => {
-      const title = row['Book Title'] || row['Title'] || row['title'] || '';
-      const quantity = parseInt(row['Quantity'] || row['Qty'] || '0');
-      const publisher = row['Publisher'] || row['publisher'] || '';
-      
-      const isBBTBook = BBT_PUBLISHERS.some(pub => 
-        publisher.toLowerCase().includes(pub.toLowerCase())
-      ) || BBT_BOOK_POINTS.hasOwnProperty(title);
+    jsonData.forEach((row: any, index: number) => {
+      try {
+        // Handle different possible column names (case insensitive)
+        const getColumnValue = (possibleNames: string[]) => {
+          for (const name of possibleNames) {
+            // Try exact match first
+            if (row[name] !== undefined) return row[name];
+            
+            // Try case-insensitive match
+            for (const key of Object.keys(row)) {
+              if (key.toLowerCase() === name.toLowerCase()) {
+                return row[key];
+              }
+            }
+          }
+          return '';
+        };
 
-      const points = isBBTBook ? (BBT_BOOK_POINTS[title] || 1) : 0;
+        const title = getColumnValue(['Book Title', 'Title', 'title', 'Book', 'Name', 'book_title']);
+        const quantityRaw = getColumnValue(['Quantity', 'Qty', 'quantity', 'Count', 'qty', 'count']);
+        const publisher = getColumnValue(['Publisher', 'publisher', 'Pub', 'pub']);
+        
+        // Clean and parse quantity
+        const quantity = parseInt(String(quantityRaw).replace(/[^\d]/g, '')) || 0;
+        
+        // Skip if no title or invalid quantity
+        if (!title || typeof title !== 'string' || title.trim() === '' || quantity <= 0) {
+          return;
+        }
 
-      if (title && quantity > 0) {
+        const cleanTitle = String(title).trim();
+        const cleanPublisher = String(publisher).trim();
+        
+        // Check if it's a BBT book
+        const isBBTBook = BBT_PUBLISHERS.some(pub => 
+          cleanPublisher.toLowerCase().includes(pub.toLowerCase())
+        ) || BBT_BOOK_POINTS.hasOwnProperty(cleanTitle);
+
+        // Calculate points
+        const basePoints = isBBTBook ? (BBT_BOOK_POINTS[cleanTitle] || 1) : 0;
+        const totalPoints = basePoints * quantity;
+
         books.push({
-          title,
+          title: cleanTitle,
           quantity,
-          points: points * quantity,
-          publisher,
+          points: totalPoints,
+          publisher: cleanPublisher,
           isBBTBook
         });
+
+      } catch (rowError) {
+        console.warn(`Error processing row ${index}:`, rowError);
       }
     });
 
@@ -290,13 +566,14 @@ export default function AdminBooks() {
 
       await addDoc(collection(db, "monthlyBookReports"), monthlyReport);
       
-      Alert.alert("Success", "Data uploaded successfully!");
+      Alert.alert("Success", "Your seva has been uploaded successfully! 🙏");
       setProcessedData([]);
       setSelectedFile(null);
       fetchMonthlyReports();
       
     } catch (error) {
-      Alert.alert("Error", "Failed to upload data");
+      console.error('Upload error:', error);
+      Alert.alert("Error", "Failed to upload data. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -305,15 +582,16 @@ export default function AdminBooks() {
   const deleteReport = (reportId: string) => {
     Alert.alert(
       "Delete Report",
-      "Are you sure?",
+      "Are you sure you want to delete this report?",
       [
         { text: "Cancel", style: "cancel" },
         { 
           text: "Delete", 
+          style: "destructive",
           onPress: async () => {
             try {
               await deleteDoc(doc(db, "monthlyBookReports", reportId));
-              Alert.alert("Success", "Report deleted");
+              Alert.alert("Success", "Report deleted successfully");
               fetchMonthlyReports();
             } catch (error) {
               Alert.alert("Error", "Failed to delete report");
@@ -345,6 +623,25 @@ export default function AdminBooks() {
   const totalBooks = processedData.reduce((sum, book) => sum + book.quantity, 0);
   const totalPoints = processedData.reduce((sum, book) => sum + book.points, 0);
 
+  // Show loading state if libraries aren't ready
+  if (!librariesReady) {
+    return (
+      <View style={[styles.container, { backgroundColor: '#FDFCFA' }]}>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#FF6B00" />
+          <Text style={{
+            marginTop: 16,
+            fontSize: 16,
+            color: '#666',
+            fontWeight: '300'
+          }}>
+            Preparing sacred tools...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -357,6 +654,19 @@ export default function AdminBooks() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
       >
+        {/* Show setup info if document picker is not available */}
+        {Platform.OS !== 'web' && !documentPicker && (
+          <View style={styles.infoCard}>
+            <Ionicons name="information-circle-outline" size={24} color="#FF6B00" />
+            <View style={{ marginLeft: 12, flex: 1 }}>
+              <Text style={styles.infoTitle}>Expo Document Picker Required</Text>
+              <Text style={styles.infoText}>
+                To upload files, install: expo install expo-document-picker
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Spiritual Quote */}
         <View style={{
           paddingVertical: 24,
@@ -389,6 +699,7 @@ export default function AdminBooks() {
             marginTop: 12
           }} />
         </View>
+
         {/* How It Works Section */}
         <View style={styles.howItWorksSection}>
           <Text style={styles.howItWorksTitle}>Sacred Process</Text>
@@ -430,9 +741,12 @@ export default function AdminBooks() {
           </Text>
           
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
+            style={[
+              styles.button, 
+              (loading || (Platform.OS !== 'web' && !documentPicker)) && styles.buttonDisabled
+            ]}
             onPress={selectDocument}
-            disabled={loading}
+            disabled={loading || (Platform.OS !== 'web' && !documentPicker)}
             activeOpacity={0.9}
           >
             <Ionicons name="document-outline" size={20} color="#FFFFFF" />
@@ -442,9 +756,16 @@ export default function AdminBooks() {
           </TouchableOpacity>
 
           {selectedFile && (
-            <Text style={styles.selectedFile}>
-              ✓ Selected: {selectedFile.name}
-            </Text>
+            <View style={styles.selectedFileContainer}>
+              <Text style={styles.selectedFile}>
+                ✓ Selected: {selectedFile.name}
+              </Text>
+              {selectedFile.size && (
+                <Text style={styles.fileSize}>
+                  Size: {(selectedFile.size / 1024).toFixed(1)} KB
+                </Text>
+              )}
+            </View>
           )}
         </View>
 
@@ -658,6 +979,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '400',
   },
+  selectedFileContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  fileSize: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    fontWeight: '300',
+  },
   stats: {
     backgroundColor: '#FFF9F5',
     padding: 16,
@@ -784,6 +1115,52 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 22,
+    fontWeight: '300',
+  },
+  warningCard: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FF6B00',
+    marginLeft: 12,
+    marginBottom: 8,
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    fontWeight: '300',
+    marginLeft: 12,
+    flex: 1,
+  },
+  infoCard: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#FF6B00',
+    marginBottom: 4,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
     fontWeight: '300',
   },
 });

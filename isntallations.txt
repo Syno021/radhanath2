@@ -1,3 +1,8 @@
 npm install react-native-document-picker xlsx
 # For iOS, also run:
 cd ios && pod install
+
+expo install expo-document-picker
+
+
+npm install react-native-document-picker
