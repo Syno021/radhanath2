@@ -31,11 +31,11 @@ export default function AdminManagementStack() {
         component={AdminUsers}
         options={{ title: "Manage Users" }} 
       />
-      {/* <Stack.Screen 
+      <Stack.Screen 
         name="AdminBooks" 
         component={AdminBooks}
         options={{ title: "Add Books" }}
-      /> */}
+      />
       <Stack.Screen 
         name="AdminClubs" 
         component={AdminClubs}
