@@ -6,6 +6,7 @@ import UserTabs from "./UserTabs";
 import AdminTabs from "./AdminTabs";
 import Login from "../../screens/Login";
 import Register from "../../screens/Register";
+import About from "../../screens/about";
 
 
 
@@ -17,6 +18,7 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   LoadBook: undefined;
+  About: undefined; // Added About screen
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -31,7 +33,7 @@ export default function AppNavigator() {
         <Stack.Screen name="AdminTabs" component={AdminTabs} />
         <Stack.Screen name="Login" component={Login} />
         <Stack.Screen name="Register" component={Register} />
-        
+        <Stack.Screen name="About" component={About} /> 
       </Stack.Navigator>
     </NavigationContainer>
   );

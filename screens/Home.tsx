@@ -1,6 +1,7 @@
 import React from "react";
 import { ScrollView, View, Text, TouchableOpacity, Image, useWindowDimensions, StatusBar } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { router } from "expo-router";
 import { RootStackParamList } from "../app/navigation/AppNavigator";
 import { useNavigation } from "@react-navigation/native";
 import styles from "../css/homeStyles";
@@ -273,6 +274,29 @@ export default function Home() {
               letterSpacing: 0.3
             }}>
               Start Your Spiritual Journey
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{
+              backgroundColor: 'transparent',
+              paddingVertical: 18,
+              borderRadius: 12,
+              alignItems: 'center',
+              borderWidth: 1,
+              borderColor: '#E0E0E0',
+              marginTop: 12
+            }}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate("About")}
+          >
+            <Text style={{
+              color: '#666',
+              fontSize: 16,
+              fontWeight: '400',
+              letterSpacing: 0.3
+            }}>
+              Learn More About Us
             </Text>
           </TouchableOpacity>
           
