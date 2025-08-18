@@ -5,7 +5,9 @@ import AdminBooks from "../../screens/AdminBooks";
 import AdminClubs from "../../screens/AdminClubs";
 import AdminGroups from "../../screens/AdminGroups";
 import AdminRdm from "../../screens/AdminRdm";
-import AdminUsers from "../../screens/AdminUsers";  
+import AdminUsers from "../../screens/AdminUsers"; 
+//import AdminTemples from "../../screens/AdminTemples";
+import AdminAddBooks from "../../screens/AdminAddBooks"; 
 
 export type AdminManagementStackParamList = {
   AdminManagementHome: undefined;
@@ -14,6 +16,8 @@ export type AdminManagementStackParamList = {
   AdminGroups: undefined;
   AdminRdm: undefined; 
   AdminUsers: undefined;
+  AdminAddBooks: undefined; // Added for AdminAddBooks screen
+  //AdminTemples: undefined; // Uncomment if you want to include AdminTemples
 };
 
 const Stack = createNativeStackNavigator<AdminManagementStackParamList>();
@@ -51,6 +55,11 @@ export default function AdminManagementStack() {
         component={AdminRdm}
         options={{ title: "Add Regions" }}
       />
+      <Stack.Screen 
+        name="AdminAddBooks" 
+        component={AdminAddBooks}
+        options={{ title: "Add Books" }} 
+      /> 
     </Stack.Navigator>
   );
 }

@@ -19,6 +19,13 @@ export default function AdminManagement() {
       emoji: '📚'
     },
     { 
+      label: 'Add Books', 
+      subtitle: 'Add Books to the library',
+      icon: 'book-outline', 
+      route: 'AdminAddBooks',
+      emoji: '📚'
+    },
+    { 
       label: 'Add Groups', 
       subtitle: 'Create community circles',
       icon: 'people-outline', 
