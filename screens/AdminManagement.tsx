@@ -12,7 +12,7 @@ export default function AdminManagement() {
 
   const options = [
     { 
-      label: 'Add Books', 
+      label: 'Rate Books', 
       subtitle: 'Manage spiritual literature',
       icon: 'book-outline', 
       route: 'AdminBooks',
