@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+  Linking,
+} from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useScrollable, useHotReload, useScrollRestore } from '../services/ScrollableService';
-import { enhancedContainerStyles } from '../services/ScrollableService.css';
 import {
   getWhatsappGroups,
   addWhatsappGroup,
@@ -10,7 +20,7 @@ import {
 import { WhatsappGroup } from '../models/whatsappGroup.model';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebaseCo';
-import { pageStyles } from '@/css/page';
+import { rnPageStyles, colors } from '../css/page'; // Import styles from the CSS file
 
 // Define default form state
 const defaultFormState: Omit<WhatsappGroup, 'id'> = {
@@ -23,27 +33,8 @@ const defaultFormState: Omit<WhatsappGroup, 'id'> = {
 };
 
 const AdminGroups: React.FC = () => {
-  const {
-    containerRef,
-    scrollToTop,
-    scrollToBottom, 
-    scrollToElement,
-    scrollToPosition,
-    isScrollable,
-    scrollPosition,
-    scrollPercentage,
-    isAtTop,
-    isAtBottom,
-  } = useScrollable({
-    enableSmoothScrolling: true,
-    customScrollbarStyles: true,
-    preventHorizontalScroll: true,
-    scrollThreshold: 50,
-    saveScrollPosition: true,
-  }, 'admin_groups');
-  
   const [formData, setFormData, clearFormData] = useHotReload(
-    'admin_groups_form', // Fixed typo: was 'admin_groupd_form'
+    'admin_groups_form',
     defaultFormState
   );
   
@@ -71,7 +62,7 @@ const AdminGroups: React.FC = () => {
     try {
       const data = await getWhatsappGroups();
       setGroups(data);
-      setFilteredGroups(data); // initialize filtered list
+      setFilteredGroups(data);
     } catch (err) {
       console.error('Error fetching groups:', err);
       setError('Failed to fetch groups');
@@ -100,8 +91,6 @@ const AdminGroups: React.FC = () => {
     setFilteredGroups(groups);
   };
 
-
-
   const fetchRegions = async () => {
     try {
       const snapshot = await getDocs(collection(db, 'regions'));
@@ -120,8 +109,7 @@ const AdminGroups: React.FC = () => {
     return pattern.test(link);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setError('');
     setLoading(true);
 
@@ -170,18 +158,29 @@ const AdminGroups: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this group?')) {
-      setLoading(true);
-      try {
-        await deleteWhatsappGroup(id);
-        await fetchGroups();
-      } catch (err) {
-        console.error('Error deleting group:', err);
-        setError('Failed to delete group');
-      } finally {
-        setLoading(false);
-      }
-    }
+    Alert.alert(
+      'Delete Group',
+      'Are you sure you want to delete this group?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await deleteWhatsappGroup(id);
+              await fetchGroups();
+            } catch (err) {
+              console.error('Error deleting group:', err);
+              setError('Failed to delete group');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const resetForm = () => {
@@ -205,272 +204,270 @@ const AdminGroups: React.FC = () => {
     }
   };
 
+  const handleJoinGroup = (inviteLink: string) => {
+    Linking.openURL(inviteLink).catch(err => {
+      console.error('Failed to open WhatsApp link:', err);
+      Alert.alert('Error', 'Could not open WhatsApp link');
+    });
+  };
+
   return (
-    <div ref={containerRef} style={enhancedContainerStyles}>
-      {/* Optional: Add scroll progress bar */}
-      {isScrollable && (
-        <div className="scroll-progress">
-          <div 
-            className="scroll-progress-bar" 
-            style={{ width: `${scrollPercentage}%` }}
-          />
-        </div>
-      )}
+    <View style={rnPageStyles.container}>
+      <ScrollView 
+        style={rnPageStyles.container}
+        contentContainerStyle={rnPageStyles.contentContainer}
+        showsVerticalScrollIndicator={true}
+      >
+        {/* Sticky Header */}
+        <View style={rnPageStyles.stickyHeader}>
+          <Text style={rnPageStyles.header}>Admin WhatsApp Groups</Text>
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ 
-          position: 'sticky', 
-          top: 0, 
-          backgroundColor: 'white', 
-          zIndex: 10, 
-          paddingBottom: '1rem',
-          borderBottom: '1px solid #e0e0e0',
-          marginBottom: '1rem'
-        }}>
-          <h1 style={pageStyles.header}>Admin WhatsApp Groups</h1>
-
-          <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <input
-              type="text"
+          {/* Search Section */}
+          <View style={rnPageStyles.searchContainer}>
+            <TextInput
               placeholder="Search groups..."
-              style={pageStyles.input}
+              style={rnPageStyles.searchInput}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChangeText={setSearchTerm}
+              editable={!loading}
             />
-            <button
-              style={pageStyles.button}
-              onClick={handleSearch}
-              disabled={loading}
-            >
-              Search
-            </button>
-            <button
-              style={pageStyles.buttonSecondary}
-              onClick={handleResetSearch}
-              disabled={loading}
-            >
-              Reset
-            </button>
-          </div>
+            <View style={rnPageStyles.searchButtons}>
+              <TouchableOpacity
+                style={[rnPageStyles.button, loading && rnPageStyles.buttonDisabled]}
+                onPress={handleSearch}
+                disabled={loading}
+              >
+                <Text style={rnPageStyles.buttonText}>Search</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[rnPageStyles.buttonSecondary, loading && rnPageStyles.buttonDisabled]}
+                onPress={handleResetSearch}
+                disabled={loading}
+              >
+                <Text style={rnPageStyles.buttonText}>Reset</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button 
-              style={pageStyles.button} 
-              onClick={handleFormToggle}
+          {/* Header Actions */}
+          <View style={rnPageStyles.headerActions}>
+            <TouchableOpacity 
+              style={[rnPageStyles.button, loading && rnPageStyles.buttonDisabled]}
+              onPress={handleFormToggle}
               disabled={loading}
             >
-              {showForm ? 'Close Form' : 'Add WhatsApp Group'}
-            </button>
+              <Text style={rnPageStyles.buttonText}>
+                {showForm ? 'Close Form' : 'Add WhatsApp Group'}
+              </Text>
+            </TouchableOpacity>
             
-            {/* Enhanced scroll buttons with more features */}
-            {isScrollable && (
-              <div className="scroll-buttons">
-                <button 
-                  className="scroll-button"
-                  onClick={scrollToTop}
-                  disabled={isAtTop}
-                  title="Scroll to top"
+            <View style={rnPageStyles.statusContainer}>
+              <Text style={rnPageStyles.statusText}>
+                Groups: {groups.length}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Error Display */}
+        {error ? (
+          <View style={{
+            backgroundColor: '#fee',
+            padding: 16,
+            marginBottom: 16,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: '#fcc',
+          }}>
+            <Text style={{ color: 'red' }}>{error}</Text>
+          </View>
+        ) : null}
+
+        {/* Form */}
+        {showForm && (
+          <View style={rnPageStyles.form}>
+            <Text style={rnPageStyles.cardTitle}>
+              {editingGroup ? 'Edit WhatsApp Group' : 'Add WhatsApp Group'}
+            </Text>
+            
+            <TextInput
+              placeholder="Group Name *"
+              style={rnPageStyles.input}
+              value={formData.name}
+              onChangeText={(text) => setFormData({ ...formData, name: text })}
+              editable={!loading}
+            />
+            
+            <TextInput
+              placeholder="Description"
+              style={[rnPageStyles.input, rnPageStyles.textArea]}
+              value={formData.description}
+              onChangeText={(text) => setFormData({ ...formData, description: text })}
+              multiline={true}
+              numberOfLines={3}
+              editable={!loading}
+            />
+            
+            <TextInput
+              placeholder="WhatsApp Invite Link *"
+              style={rnPageStyles.input}
+              value={formData.inviteLink}
+              onChangeText={(text) => setFormData({ ...formData, inviteLink: text })}
+              keyboardType="url"
+              autoCapitalize="none"
+              editable={!loading}
+            />
+            
+            <View style={rnPageStyles.pickerContainer}>
+              <Text style={rnPageStyles.label}>Region *</Text>
+              <View style={rnPageStyles.picker}>
+                <Picker
+                  selectedValue={formData.regionId}
+                  onValueChange={(itemValue) =>
+                    setFormData({ ...formData, regionId: itemValue })
+                  }
+                  enabled={!loading}
                 >
-                  ↑ Top
-                </button>
-                <button 
-                  className="scroll-button"
-                  onClick={scrollToBottom}
-                  disabled={isAtBottom}
-                  title="Scroll to bottom"
+                  <Picker.Item label="Select Region *" value="" />
+                  {regions.map((region) => (
+                    <Picker.Item 
+                      key={region.id} 
+                      label={region.name || region.id} 
+                      value={region.id} 
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+            
+            <TextInput
+              placeholder="Member Count"
+              style={rnPageStyles.input}
+              value={formData.memberCount?.toString() || '0'}
+              onChangeText={(text) =>
+                setFormData({ ...formData, memberCount: parseInt(text) || 0 })
+              }
+              keyboardType="numeric"
+              editable={!loading}
+            />
+            
+            <View style={rnPageStyles.pickerContainer}>
+              <Text style={rnPageStyles.label}>Group Type</Text>
+              <View style={rnPageStyles.picker}>
+                <Picker
+                  selectedValue={formData.groupType}
+                  onValueChange={(itemValue) =>
+                    setFormData({ ...formData, groupType: itemValue as WhatsappGroup['groupType'] })
+                  }
+                  enabled={!loading}
                 >
-                  ↓ Bottom
-                </button>
-                {/* New: Quick jump to form */}
-                {showForm && (
-                  <button 
-                    className="scroll-button"
-                    onClick={() => scrollToElement('group-form')}
-                    title="Jump to form"
-                  >
-                    → Form
-                  </button>
+                  <Picker.Item label="General" value="general" />
+                  <Picker.Item label="Book Study" value="book-study" />
+                  <Picker.Item label="Events" value="events" />
+                  <Picker.Item label="Seva" value="seva" />
+                </Picker>
+              </View>
+            </View>
+            
+            <View style={rnPageStyles.searchButtons}>
+              <TouchableOpacity 
+                style={[rnPageStyles.button, loading && rnPageStyles.buttonDisabled]}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.white} size="small" />
+                ) : (
+                  <Text style={rnPageStyles.buttonText}>
+                    {editingGroup ? 'Update Group' : 'Add Group'}
+                  </Text>
                 )}
-              </div>
-            )}
-            
-            {/* Enhanced status display */}
-            <div style={{ fontSize: '0.8rem', color: '#888', marginLeft: 'auto' }}>
-              Groups: {groups.length} | 
-              Scroll: {Math.round(scrollPercentage)}% | 
-              Pos: {Math.round(scrollPosition)}px
-              {isScrollable && (
-                <>
-                  {isAtTop && ' | At Top'}
-                  {isAtBottom && ' | At Bottom'}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div style={pageStyles.container}>
-          {error && (
-            <div style={{ 
-              color: 'red', 
-              backgroundColor: '#fee', 
-              padding: '1rem', 
-              marginBottom: '1rem',
-              borderRadius: '4px',
-              border: '1px solid #fcc'
-            }}>
-              {error}
-            </div>
-          )}
-
-          {showForm && (
-            <form 
-              id="group-form"
-              onSubmit={handleSubmit} 
-              style={{...pageStyles.form, marginBottom: '2rem'}}
-            >
-              <h3>{editingGroup ? 'Edit WhatsApp Group' : 'Add WhatsApp Group'}</h3>
+              </TouchableOpacity>
               
-              <input
-                type="text"
-                placeholder="Group Name *"
-                style={pageStyles.input}
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-              
-              <textarea
-                placeholder="Description"
-                style={pageStyles.input}
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              />
-              
-              <input
-                type="url"
-                placeholder="WhatsApp Invite Link *"
-                style={pageStyles.input}
-                value={formData.inviteLink}
-                onChange={(e) => setFormData({ ...formData, inviteLink: e.target.value })}
-                required
-              />
-              
-              <select
-                style={pageStyles.select}
-                value={formData.regionId}
-                onChange={(e) => setFormData({ ...formData, regionId: e.target.value })}
-                required
+              <TouchableOpacity 
+                style={[rnPageStyles.buttonSecondary, loading && rnPageStyles.buttonDisabled]}
+                onPress={handleFormToggle}
+                disabled={loading}
               >
-                <option value="">Select Region *</option>
-                {regions.map((region) => (
-                  <option key={region.id} value={region.id}>
-                    {region.name || region.id}
-                  </option>
-                ))}
-              </select>
-              
-              <input
-                type="number"
-                placeholder="Member Count"
-                style={pageStyles.input}
-                value={formData.memberCount || 0}
-                onChange={(e) =>
-                  setFormData({ ...formData, memberCount: parseInt(e.target.value) || 0 })
-                }
-                min="0"
-              />
-              
-              <select
-                style={pageStyles.select}
-                value={formData.groupType}
-                onChange={(e) =>
-                  setFormData({ ...formData, groupType: e.target.value as WhatsappGroup['groupType'] })
-                }
-              >
-                <option value="general">General</option>
-                <option value="book-study">Book Study</option>
-                <option value="events">Events</option>
-                <option value="seva">Seva</option>
-              </select>
-              
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button 
-                  type="submit" 
-                  style={pageStyles.button}
-                  disabled={loading}
-                >
-                  {loading ? 'Saving...' : (editingGroup ? 'Update Group' : 'Add Group')}
-                </button>
-                
-                <button 
-                  type="button" 
-                  style={pageStyles.buttonSecondary}
-                  onClick={handleFormToggle}
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
+                <Text style={rnPageStyles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
-          <div style={pageStyles.cardGrid}>
-            {filteredGroups.map((group) => (
-              <div key={group.id} style={pageStyles.card}>
-                <h4 style={pageStyles.cardTitle}>{group.name}</h4>
-                <p style={pageStyles.cardText}>{group.description}</p>
-                <a 
-                  href={group.inviteLink} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  style={{ color: '#007bff', textDecoration: 'none' }}
-                >
+        {/* Groups List */}
+        <View style={rnPageStyles.clubsList}>
+          {filteredGroups.map((group) => (
+            <View key={group.id} style={rnPageStyles.card}>
+              <Text style={rnPageStyles.cardTitle}>{group.name}</Text>
+              <Text style={rnPageStyles.cardText}>{group.description}</Text>
+              
+              <TouchableOpacity onPress={() => handleJoinGroup(group.inviteLink)}>
+                <Text style={{ color: '#007bff', textDecorationLine: 'underline', marginBottom: 6 }}>
                   Join WhatsApp Group →
-                </a>
-                <p style={pageStyles.cardText}>
-                  <strong>Region:</strong> {regions.find(r => r.id === group.regionId)?.name || group.regionId}
-                </p>
-                <p style={pageStyles.cardText}>
-                  <strong>Members:</strong> {group.memberCount || 0}
-                </p>
-                <p style={pageStyles.cardText}>
-                  <strong>Type:</strong> {group.groupType}
-                </p>
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-                  <button 
-                    style={pageStyles.buttonSecondary} 
-                    onClick={() => handleEdit(group)}
-                    disabled={loading}
-                  >
-                    Edit
-                  </button>
-                  <button 
-                    style={pageStyles.buttonDanger} 
-                    onClick={() => handleDelete(group.id)}
-                    disabled={loading}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+                </Text>
+              </TouchableOpacity>
+              
+              <Text style={rnPageStyles.cardText}>
+                <Text style={rnPageStyles.cardLabel}>Region: </Text>
+                {regions.find(r => r.id === group.regionId)?.name || group.regionId}
+              </Text>
+              
+              <Text style={rnPageStyles.cardText}>
+                <Text style={rnPageStyles.cardLabel}>Members: </Text>
+                {group.memberCount || 0}
+              </Text>
+              
+              <Text style={rnPageStyles.cardText}>
+                <Text style={rnPageStyles.cardLabel}>Type: </Text>
+                {group.groupType}
+              </Text>
+              
+              <View style={rnPageStyles.cardActions}>
+                <TouchableOpacity 
+                  style={[rnPageStyles.buttonSecondary, loading && rnPageStyles.buttonDisabled]}
+                  onPress={() => handleEdit(group)}
+                  disabled={loading}
+                >
+                  <Text style={rnPageStyles.buttonText}>Edit</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[rnPageStyles.buttonDanger, loading && rnPageStyles.buttonDisabled]}
+                  onPress={() => handleDelete(group.id)}
+                  disabled={loading}
+                >
+                  <Text style={rnPageStyles.buttonText}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+        </View>
 
-          {groups.length === 0 && !loading && (
-            <div style={{ 
-              textAlign: 'center', 
-              color: '#666', 
-              padding: '2rem',
-              backgroundColor: '#f9f9f9',
-              borderRadius: '8px'
-            }}>
+        {/* Empty State */}
+        {groups.length === 0 && !loading && (
+          <View style={{
+            alignItems: 'center',
+            padding: 32,
+            backgroundColor: '#f9f9f9',
+            borderRadius: 8,
+            marginTop: 16,
+          }}>
+            <Text style={{ color: '#666', textAlign: 'center' }}>
               No WhatsApp groups found. Add your first group to get started!
-            </div>
-          )}
-        </div>
-      </div>
-    </div>  
+            </Text>
+          </View>
+        )}
+
+        {/* Loading Indicator */}
+        {loading && groups.length === 0 && (
+          <View style={{ alignItems: 'center', padding: 32 }}>
+            <ActivityIndicator size="large" color={colors.churchOrange} />
+            <Text style={{ marginTop: 8, color: '#666' }}>Loading groups...</Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 };
 

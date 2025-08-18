@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from "react-native";
 import { useScrollable } from "../services/ScrollableService";
 import { enhancedContainerStyles } from "../services/ScrollableService.css";
 import { collection, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
@@ -8,6 +9,9 @@ import UserService from "../services/userService";
 import { styles } from "../css/adminUsers.styles";
 
 const AdminUsers: React.FC = () => {
+
+  const scrollViewRef = useRef<ScrollView>(null);
+
   const {
     containerRef,
     scrollToTop,
@@ -36,7 +40,7 @@ const AdminUsers: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedRole, setSelectedRole] = useState<{ [key: string]: User["role"] }>({});
   const [isMobile, setIsMobile] = useState(false);
-  const [error, setError] = useState<string | null>(null); // ✅ Added missing error state
+  const [error, setError] = useState<string | null>(null);
 
   /** Check if mobile view */
   useEffect(() => {
@@ -84,7 +88,7 @@ const AdminUsers: React.FC = () => {
       setUsers((prev) =>
         prev.map((u) => (u.uid === uid ? { ...u, role } : u))
       );
-      alert("Role updated successfully!");
+      Alert.alert("Success", "Role updated successfully!");
     } catch (err) {
       console.error("Error updating role:", err);
       setError("Failed to update role.");
@@ -92,248 +96,269 @@ const AdminUsers: React.FC = () => {
   };
 
   const handleSuspendUser = async (uid: string) => {
-    if (!window.confirm("Are you sure you want to suspend this user?")) return;
-    try {
-      await updateDoc(doc(db, "users", uid), { status: "suspended" });
-      setUsers((prev) =>
-        prev.map((u) => (u.uid === uid ? { ...u, status: "suspended" } : u))
-      );
-      alert("User suspended successfully!");
-    } catch (err) {
-      console.error("Error suspending user:", err);
-      setError("Failed to suspend user.");
-    }
+    Alert.alert(
+      "Confirm Suspension",
+      "Are you sure you want to suspend this user?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Suspend",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await updateDoc(doc(db, "users", uid), { status: "suspended" });
+              setUsers((prev) =>
+                prev.map((u) => (u.uid === uid ? { ...u, status: "suspended" } : u))
+              );
+              Alert.alert("Success", "User suspended successfully!");
+            } catch (err) {
+              console.error("Error suspending user:", err);
+              setError("Failed to suspend user.");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleDeleteUser = async (uid: string) => {
-    if (!window.confirm("This will permanently delete the user. Continue?")) return;
-    try {
-      await deleteDoc(doc(db, "users", uid));
-      setUsers((prev) => prev.filter((u) => u.uid !== uid));
-      alert("User deleted successfully!");
-    } catch (err) {
-      console.error("Error deleting user:", err);
-      setError("Failed to delete user.");
-    }
+    Alert.alert(
+      "Confirm Deletion",
+      "This will permanently delete the user. Continue?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, "users", uid));
+              setUsers((prev) => prev.filter((u) => u.uid !== uid));
+              Alert.alert("Success", "User deleted successfully!");
+            } catch (err) {
+              console.error("Error deleting user:", err);
+              setError("Failed to delete user.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const RoleSelector = ({ uid, currentRole }: { uid: string; currentRole: User["role"] }) => {
+    const roleOptions = [
+      { label: "User", value: "user" },
+      { label: "Facilitator", value: "facilitator" },
+      { label: "Admin", value: "admin" },
+    ];
+
+    return (
+      <View style={styles.roleSelector}>
+        {roleOptions.map((option) => (
+          <TouchableOpacity
+            key={option.value}
+            style={[
+              styles.roleOption,
+              selectedRole[uid] === option.value && styles.roleOptionSelected
+            ]}
+            onPress={() =>
+              setSelectedRole((prev) => ({
+                ...prev,
+                [uid]: option.value as User["role"],
+              }))
+            }
+          >
+            <Text style={[
+              styles.roleOptionText,
+              selectedRole[uid] === option.value && styles.roleOptionTextSelected
+            ]}>
+              {option.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
   };
 
   return (
-    <div ref={containerRef} style={enhancedContainerStyles}>
+    <ScrollView ref={scrollViewRef} style={[enhancedContainerStyles, styles.mainContainer]}>
       {isScrollable && (
-        <div className="scroll-progress">
-          <div
-            className="scroll-progress-bar"
-            style={{ width: `${scrollPercentage}%` }}
+        <View style={styles.scrollProgress}>
+          <View
+            style={[styles.scrollProgressBar, { width: `${scrollPercentage}%` }]}
           />
-        </div>
+        </View>
       )}
 
-      <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-        <div
-          style={{
-            position: "sticky",
-            top: 0,
-            backgroundColor: "white",
-            zIndex: 10,
-            paddingBottom: "1rem",
-            borderBottom: "1px solid #e0e0e0",
-            marginBottom: "1rem",
-          }}
-        >
-          <h1 >Admin Users</h1> {/* ✅ Fixed title */}
+      <View style={styles.contentContainer}>
+        <View style={styles.stickyHeader}>
+          <Text style={styles.title}>Admin Users</Text>
+          
           {/* Search Box */}
-          <div style={styles.searchBox}>
-            <input
-              type="text"
+          <View style={styles.searchBox}>
+            <TextInput
               placeholder="Search by name or email..."
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChangeText={setSearchInput}
               style={styles.searchInput}
+              placeholderTextColor={styles.placeholderColor.color}
             />
-            <button onClick={() => setSearchTerm(searchInput)} style={styles.searchButton}>
-              Search
-            </button>
-          </div>
-          <div style={{ display: "flex", gap: "1rem", alignItems: "center", flexWrap: "wrap" }}>
+            <TouchableOpacity 
+              onPress={() => setSearchTerm(searchInput)} 
+              style={styles.searchButton}
+            >
+              <Text style={styles.searchButtonText}>Search</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.controlsContainer}>
             {isScrollable && (
-              <div className="scroll-buttons">
-                <button
-                  className="scroll-button"
-                  onClick={scrollToTop}
+              <View style={styles.scrollButtonsContainer}>
+                <TouchableOpacity
+                  style={[styles.scrollButton, isAtTop && styles.scrollButtonDisabled]}
+                  onPress={scrollToTop}
                   disabled={isAtTop}
-                  title="Scroll to top"
                 >
-                  ↑ Top
-                </button>
-                <button
-                  className="scroll-button"
-                  onClick={scrollToBottom}
+                  <Text style={[styles.scrollButtonText, isAtTop && styles.scrollButtonTextDisabled]}>
+                    ↑ Top
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.scrollButton, isAtBottom && styles.scrollButtonDisabled]}
+                  onPress={scrollToBottom}
                   disabled={isAtBottom}
-                  title="Scroll to bottom"
                 >
-                  ↓ Bottom
-                </button>
-              </div>
+                  <Text style={[styles.scrollButtonText, isAtBottom && styles.scrollButtonTextDisabled]}>
+                    ↓ Bottom
+                  </Text>
+                </TouchableOpacity>
+              </View>
             )}
 
-            <div style={{ fontSize: "0.8rem", color: "#888", marginLeft: "auto" }}>
-              Users: {users.length} | Scroll: {Math.round(scrollPercentage)}% | Pos:{" "}
-              {Math.round(scrollPosition)}px
-              {isScrollable && (
-                <>
-                  {isAtTop && " | At Top"}
-                  {isAtBottom && " | At Bottom"}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+            <View style={styles.infoContainer}>
+              <Text style={styles.infoText}>
+                Users: {users.length} | Scroll: {Math.round(scrollPercentage)}% | Pos:{" "}
+                {Math.round(scrollPosition)}px
+                {isScrollable && (
+                  <>
+                    {isAtTop && " | At Top"}
+                    {isAtBottom && " | At Bottom"}
+                  </>
+                )}
+              </Text>
+            </View>
+          </View>
+        </View>
 
-        <div style={styles.container}>
+        <View style={styles.container}>
           {error && (
-            <div
-              style={{
-                color: "red",
-                backgroundColor: "#fee",
-                padding: "1rem",
-                marginBottom: "1rem",
-                borderRadius: "4px",
-                border: "1px solid #fcc",
-              }}
-            >
-              {error}
-            </div>
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
           )}
 
-          <h2>Manage Users</h2>
-
-          
+          <Text style={styles.subtitle}>Manage Users</Text>
 
           {loading ? (
-            <p>Loading users...</p>
+            <Text style={styles.loadingText}>Loading users...</Text>
           ) : isMobile ? (
             /** MOBILE VIEW - CARDS */
-            <div style={styles.cardList}>
+            <View style={styles.cardList}>
               {filteredUsers.length > 0 ? (
                 filteredUsers.map((user) => (
-                  <div key={user.uid} style={styles.card}>
-                    <div style={styles.cardField}>
-                      <strong>Name:</strong> {user.displayName}
-                    </div>
-                    <div style={styles.cardField}>
-                      <strong>Email:</strong> {user.email}
-                    </div>
-                    <div style={styles.cardField}>
-                      <strong>Role:</strong>{" "}
-                      <select
-                        value={selectedRole[user.uid]}
-                        onChange={(e) =>
-                          setSelectedRole((prev) => ({
-                            ...prev,
-                            [user.uid]: e.target.value as User["role"],
-                          }))
-                        }
+                  <View key={user.uid} style={styles.card}>
+                    <View style={styles.cardField}>
+                      <Text style={styles.cardFieldLabel}>Name:</Text>
+                      <Text style={styles.cardFieldValue}>{user.displayName}</Text>
+                    </View>
+                    <View style={styles.cardField}>
+                      <Text style={styles.cardFieldLabel}>Email:</Text>
+                      <Text style={styles.cardFieldValue}>{user.email}</Text>
+                    </View>
+                    <View style={styles.cardField}>
+                      <Text style={styles.cardFieldLabel}>Role:</Text>
+                      <RoleSelector uid={user.uid} currentRole={user.role} />
+                    </View>
+                    <View style={styles.cardActionsContainer}>
+                      <TouchableOpacity
+                        onPress={() => handleRoleChange(user.uid)}
+                        style={[styles.actionButton, styles.updateButton]}
                       >
-                        <option value="user">User</option>
-                        <option value="facilitator">Facilitator</option>
-                        <option value="admin">Admin</option>
-                      </select>
-                    </div>
-                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                      <button
-                        onClick={() => handleRoleChange(user.uid)}
-                        style={{ ...styles.actionButton, ...styles.updateButton }}
+                        <Text style={styles.actionButtonText}>Update Role</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleSuspendUser(user.uid)}
+                        style={[styles.actionButton, styles.suspendButton]}
                       >
-                        Update Role
-                      </button>
-                      <button
-                        onClick={() => handleSuspendUser(user.uid)}
-                        style={{ ...styles.actionButton, backgroundColor: "#ffc107" }}
+                        <Text style={styles.actionButtonText}>Suspend</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleDeleteUser(user.uid)}
+                        style={[styles.actionButton, styles.deleteButton]}
                       >
-                        Suspend
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.uid)}
-                        style={{ ...styles.actionButton, ...styles.deleteButton }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
+                        <Text style={styles.actionButtonText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 ))
               ) : (
-                <p>No users found.</p>
+                <Text style={styles.noUsersText}>No users found.</Text>
               )}
-            </div>
+            </View>
           ) : (
-            /** DESKTOP VIEW - TABLE */
-            <table style={styles.table}>
-              <thead style={styles.tableHead}>
-                <tr>
-                  <th style={styles.tableCell}>Name</th>
-                  <th style={styles.tableCell}>Email</th>
-                  <th style={styles.tableCell}>Role</th>
-                  <th style={styles.tableCell}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
-                    <tr key={user.uid}>
-                      <td style={styles.tableCell}>{user.displayName}</td>
-                      <td style={styles.tableCell}>{user.email}</td>
-                      <td style={styles.tableCell}>
-                        <select
-                          value={selectedRole[user.uid]}
-                          onChange={(e) =>
-                            setSelectedRole((prev) => ({
-                              ...prev,
-                              [user.uid]: e.target.value as User["role"],
-                            }))
-                          }
+            /** DESKTOP VIEW - TABLE-LIKE CARDS */
+            <View style={styles.tableContainer}>
+              {/* Table Header */}
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableHeaderText, styles.nameColumn]}>Name</Text>
+                <Text style={[styles.tableHeaderText, styles.emailColumn]}>Email</Text>
+                <Text style={[styles.tableHeaderText, styles.roleColumn]}>Role</Text>
+                <Text style={[styles.tableHeaderText, styles.actionsColumn]}>Actions</Text>
+              </View>
+
+              {/* Table Body */}
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map((user) => (
+                  <View key={user.uid} style={styles.tableRow}>
+                    <Text style={[styles.tableCellText, styles.nameColumn]}>{user.displayName}</Text>
+                    <Text style={[styles.tableCellText, styles.emailColumn]}>{user.email}</Text>
+                    <View style={[styles.tableCellContainer, styles.roleColumn]}>
+                      <RoleSelector uid={user.uid} currentRole={user.role} />
+                    </View>
+                    <View style={[styles.tableCellContainer, styles.actionsColumn]}>
+                      <View style={styles.tableActionsContainer}>
+                        <TouchableOpacity
+                          onPress={() => handleRoleChange(user.uid)}
+                          style={[styles.actionButton, styles.updateButton]}
                         >
-                          <option value="user">User</option>
-                          <option value="facilitator">Facilitator</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                      </td>
-                      <td style={styles.tableCell}>
-                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                          <button
-                            onClick={() => handleRoleChange(user.uid)}
-                            style={{ ...styles.actionButton, ...styles.updateButton }}
-                          >
-                            Update Role
-                          </button>
-                          <button
-                            onClick={() => handleSuspendUser(user.uid)}
-                            style={{ ...styles.actionButton, backgroundColor: "#ffc107" }}
-                          >
-                            Suspend
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(user.uid)}
-                            style={{ ...styles.actionButton, ...styles.deleteButton }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} style={{ padding: "8px", textAlign: "center" }}>
-                      No users found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                          <Text style={styles.actionButtonText}>Update Role</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleSuspendUser(user.uid)}
+                          style={[styles.actionButton, styles.suspendButton]}
+                        >
+                          <Text style={styles.actionButtonText}>Suspend</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleDeleteUser(user.uid)}
+                          style={[styles.actionButton, styles.deleteButton]}
+                        >
+                          <Text style={styles.actionButtonText}>Delete</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.noUsersContainer}>
+                  <Text style={styles.noUsersText}>No users found.</Text>
+                </View>
+              )}
+            </View>
           )}
-        </div>
-      </div>
-    </div>
+        </View>
+      </View>
+    </ScrollView>
   );
 };
 

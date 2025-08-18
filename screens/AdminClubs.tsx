@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  StyleSheet,
+} from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useScrollable, useHotReload, useScrollRestore } from '../services/ScrollableService';
-import {enhancedContainerStyles} from '../services/ScrollableService.css';
 import {
   addReadingClub,
   updateReadingClub,
@@ -9,7 +18,7 @@ import {
   getRegions,
 } from '../services/ReadingClubService';
 import { ReadingClub } from '../models/ReadingClub.model';
-import { pageStyles } from '@/css/page';
+import { rnPageStyles } from '../css/page';
 
 interface Region {
   id: string;
@@ -31,29 +40,7 @@ const defaultFormState: Omit<ReadingClub, 'id' | 'createdAt' | 'updatedAt'> = {
 };
 
 const AdminClubs: React.FC = () => {
-
-  // Your existing call gets enhanced features automatically:
-const {
-  containerRef,
-  scrollToTop,
-  scrollToBottom, 
-  scrollToElement,
-  scrollToPosition, // NEW
-  isScrollable,
-  scrollPosition,
-  scrollPercentage, // NEW
-  isAtTop, // NEW  
-  isAtBottom, // NEW
-} = useScrollable({
-  enableSmoothScrolling: true,
-  customScrollbarStyles: true,
-  preventHorizontalScroll: true,
-  scrollThreshold: 50, // NEW - customize when isAtTop/isAtBottom trigger
-  saveScrollPosition: true, // NEW - auto-save scroll position
-}, 'admin_clubs');
-
-
-const [formData, setFormData, clearFormData] = useHotReload(
+  const [formData, setFormData, clearFormData] = useHotReload(
     'admin_clubs_form',
     defaultFormState
   );
@@ -66,11 +53,9 @@ const [formData, setFormData, clearFormData] = useHotReload(
   const [clubs, setClubs] = useState<ReadingClub[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [showForm, setShowForm] = useState(false);
-  //const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");   // 🔎 search state
+  const [searchTerm, setSearchTerm] = useState("");
   const [filteredClubs, setFilteredClubs] = useState<ReadingClub[]>([]);
-
 
   useEffect(() => {
     loadClubs();
@@ -78,11 +63,11 @@ const [formData, setFormData, clearFormData] = useHotReload(
   }, []);
 
   useEffect(() => {
-    handleFilter(); // apply filter whenever clubs or searchTerm changes
+    handleFilter();
   }, [clubs, searchTerm]);
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+  const handleSearchChange = (text: string) => {
+    setSearchTerm(text);
   };
 
   const handleFilter = () => {
@@ -101,8 +86,7 @@ const [formData, setFormData, clearFormData] = useHotReload(
     setFilteredClubs(results);
   };
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSearchSubmit = () => {
     handleFilter();
   };
 
@@ -124,31 +108,28 @@ const [formData, setFormData, clearFormData] = useHotReload(
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+  const handleChange = (name: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
 
-  const handleLocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
+  const handleLocationChange = (name: string, value: string) => {
     setFormData((prev) => {
       const location = prev.location ?? { address: '', latitude: 0, longitude: 0 };
       return {
         ...prev,
         location: {
           address: name === 'address' ? value : location.address,
-          latitude: name === 'latitude' ? parseFloat(value) : location.latitude,
-          longitude: name === 'longitude' ? parseFloat(value) : location.longitude,
+          latitude: name === 'latitude' ? parseFloat(value) || 0 : location.latitude,
+          longitude: name === 'longitude' ? parseFloat(value) || 0 : location.longitude,
         },
       };
     });
   };
 
-  const handleScheduleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+  const handleScheduleChange = (name: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       schedule: {
@@ -158,8 +139,17 @@ const [formData, setFormData, clearFormData] = useHotReload(
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleFacilitatorChange = (name: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      facilitator: {
+        ...prev.facilitator,
+        [name]: value,
+      },
+    }));
+  };
+
+  const handleSubmit = async () => {
     try {
       if (editId) {
         await updateReadingClub(editId, formData);
@@ -183,310 +173,249 @@ const [formData, setFormData, clearFormData] = useHotReload(
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this club?')) {
-      try {
-        await deleteReadingClub(id);
-        await loadClubs();
-      } catch (err) {
-        console.error(err);
-      }
-    }
+    Alert.alert(
+      'Delete Club',
+      'Are you sure you want to delete this club?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteReadingClub(id);
+              await loadClubs();
+            } catch (err) {
+              console.error(err);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const resetSearch = () => {
+    setSearchTerm('');
   };
 
   return (
-    <div ref={containerRef} style={enhancedContainerStyles}>
-      {/* Optional: Add scroll progress bar */}
-      {isScrollable && (
-        <div className="scroll-progress">
-          <div 
-            className="scroll-progress-bar" 
-            style={{ width: `${scrollPercentage}%` }}
+    <ScrollView style={rnPageStyles.container} contentContainerStyle={rnPageStyles.contentContainer}>
+      <View style={rnPageStyles.stickyHeader}>
+        <Text style={rnPageStyles.header}>Admin Reading Clubs</Text>
+        
+        {/* Search Section */}
+        <View style={rnPageStyles.searchContainer}>
+          <TextInput
+            style={rnPageStyles.searchInput}
+            placeholder="Search by name, description, book, facilitator..."
+            value={searchTerm}
+            onChangeText={handleSearchChange}
+            returnKeyType="search"
+            onSubmitEditing={handleSearchSubmit}
           />
-        </div>
-      )}
+          <View style={rnPageStyles.searchButtons}>
+            <TouchableOpacity style={rnPageStyles.button} onPress={handleSearchSubmit}>
+              <Text style={rnPageStyles.buttonText}>Search</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={rnPageStyles.buttonSecondary} onPress={resetSearch}>
+              <Text style={rnPageStyles.buttonText}>Reset</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ 
-          position: 'sticky', 
-          top: 0, 
-          backgroundColor: 'white', 
-          zIndex: 10, 
-          paddingBottom: '1rem',
-          borderBottom: '1px solid #e0e0e0',
-          marginBottom: '1rem'
-        }}>
-          <h1 style={pageStyles.header}>Admin Reading Clubs</h1>
-          
-          {/* 🔎 Search Bar & Filter */}
-          <form
-            onSubmit={handleSearchSubmit}
-            style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}
+        <View style={rnPageStyles.headerActions}>
+          <TouchableOpacity
+            style={[rnPageStyles.button, loading && rnPageStyles.buttonDisabled]}
+            onPress={() => setShowForm((prev) => !prev)}
+            disabled={loading}
           >
-            <input
-              type="text"
-              placeholder="Search by name, description, book, facilitator..."
-              style={pageStyles.input}
-              value={searchTerm}
-              onChange={handleSearchChange}
-            />
-            <button type="submit" style={pageStyles.button}>
-              Search
-            </button>
-            <button
-              type="button"
-              style={pageStyles.buttonSecondary}
-              onClick={() => setSearchTerm("")}
-            >
-              Reset
-            </button>
-          </form>
-
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button 
-              style={pageStyles.button} 
-              onClick={() => setShowForm((prev) => !prev)}
-              disabled={loading}
-            >
+            <Text style={rnPageStyles.buttonText}>
               {showForm ? 'Close Form' : 'Add Reading Club'}
-            </button>
-            
-            {/* Enhanced scroll buttons with more features */}
-            {isScrollable && (
-              <div className="scroll-buttons">
-                <button 
-                  className="scroll-button"
-                  onClick={scrollToTop}
-                  disabled={isAtTop}
-                  title="Scroll to top"
-                >
-                  ↑ Top
-                </button>
-                <button 
-                  className="scroll-button"
-                  onClick={scrollToBottom}
-                  disabled={isAtBottom}
-                  title="Scroll to bottom"
-                >
-                  ↓ Bottom
-                </button>
-                {/* New: Quick jump to form */}
-                {showForm && (
-                  <button 
-                    className="scroll-button"
-                    onClick={() => scrollToElement('club-form')}
-                    title="Jump to form"
-                  >
-                    → Form
-                  </button>
-                )}
-              </div>
-            )}
-            
-            {/* Enhanced status display */}
-            <div style={{ fontSize: '0.8rem', color: '#888', marginLeft: 'auto' }}>
-              Clubs: {clubs.length} | 
-              Scroll: {Math.round(scrollPercentage)}% | 
-              Pos: {Math.round(scrollPosition)}px
-              {isScrollable && (
-                <>
-                  {isAtTop && ' | At Top'}
-                  {isAtBottom && ' | At Bottom'}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+            </Text>
+          </TouchableOpacity>
+          
+          <View style={rnPageStyles.statusContainer}>
+            <Text style={rnPageStyles.statusText}>
+              Clubs: {clubs.length}
+            </Text>
+          </View>
+        </View>
+      </View>
 
-        {/* Rest of your existing JSX remains the same */}
-        {/* ... */}
-        <div style={pageStyles.container}>
-      <h1 style={pageStyles.header}>Admin Reading Clubs</h1>
-
-      <button style={pageStyles.button} onClick={() => setShowForm((prev) => !prev)}>
-        {showForm ? 'Close Form' : 'Add Reading Club'}
-      </button>
-
+      {/* Form Section */}
       {showForm && (
-        <form onSubmit={handleSubmit} style={pageStyles.form}>
-          <input
-            name="name"
+        <View style={rnPageStyles.form}>
+          <TextInput
+            style={rnPageStyles.input}
             placeholder="Club Name"
-            style={pageStyles.input}
             value={formData.name}
-            onChange={handleChange}
-            required
+            onChangeText={(text) => handleChange('name', text)}
           />
-          <textarea
-            name="description"
+          
+          <TextInput
+            style={[rnPageStyles.input, rnPageStyles.textArea]}
             placeholder="Description"
-            style={pageStyles.input}
             value={formData.description}
-            onChange={handleChange}
-            required
+            onChangeText={(text) => handleChange('description', text)}
+            multiline
+            numberOfLines={3}
           />
-          <select
-            name="meetingType"
-            style={pageStyles.select}
-            value={formData.meetingType}
-            onChange={handleChange}
-          >
-            <option value="online">Online</option>
-            <option value="in-person">In-Person</option>
-            <option value="hybrid">Hybrid</option>
-          </select>
 
-          <input
-            name="address"
+          <View style={rnPageStyles.pickerContainer}>
+            <Text style={rnPageStyles.label}>Meeting Type</Text>
+            <Picker
+              selectedValue={formData.meetingType}
+              style={rnPageStyles.picker}
+              onValueChange={(value) => handleChange('meetingType', value)}
+            >
+              <Picker.Item label="Online" value="online" />
+              <Picker.Item label="In-Person" value="in-person" />
+              <Picker.Item label="Hybrid" value="hybrid" />
+            </Picker>
+          </View>
+
+          <TextInput
+            style={rnPageStyles.input}
             placeholder="Location Address"
-            style={pageStyles.input}
             value={formData.location?.address || ''}
-            onChange={handleLocationChange}
+            onChangeText={(text) => handleLocationChange('address', text)}
           />
-          <input
-            name="latitude"
+          
+          <TextInput
+            style={rnPageStyles.input}
             placeholder="Latitude"
-            type="number"
-            style={pageStyles.input}
-            value={formData.location?.latitude || 0}
-            onChange={handleLocationChange}
+            value={formData.location?.latitude?.toString() || '0'}
+            onChangeText={(text) => handleLocationChange('latitude', text)}
+            keyboardType="numeric"
           />
-          <input
-            name="longitude"
+          
+          <TextInput
+            style={rnPageStyles.input}
             placeholder="Longitude"
-            type="number"
-            style={pageStyles.input}
-            value={formData.location?.longitude || 0}
-            onChange={handleLocationChange}
+            value={formData.location?.longitude?.toString() || '0'}
+            onChangeText={(text) => handleLocationChange('longitude', text)}
+            keyboardType="numeric"
           />
 
-          <input
-            name="day"
+          <TextInput
+            style={rnPageStyles.input}
             placeholder="Day"
-            style={pageStyles.input}
             value={formData.schedule.day}
-            onChange={handleScheduleChange}
+            onChangeText={(text) => handleScheduleChange('day', text)}
           />
-          <input
-            name="time"
-            placeholder="Time"
-            type="time"
-            style={pageStyles.input}
+          
+          <TextInput
+            style={rnPageStyles.input}
+            placeholder="Time (e.g., 14:30)"
             value={formData.schedule.time}
-            onChange={handleScheduleChange}
+            onChangeText={(text) => handleScheduleChange('time', text)}
           />
-          <select
-            name="frequency"
-            style={pageStyles.select}
-            value={formData.schedule.frequency}
-            onChange={handleScheduleChange}
-          >
-            <option value="weekly">Weekly</option>
-            <option value="biweekly">Biweekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
 
-          <input
-            name="currentBook"
+          <View style={rnPageStyles.pickerContainer}>
+            <Text style={rnPageStyles.label}>Frequency</Text>
+            <Picker
+              selectedValue={formData.schedule.frequency}
+              style={rnPageStyles.picker}
+              onValueChange={(value) => handleScheduleChange('frequency', value)}
+            >
+              <Picker.Item label="Weekly" value="weekly" />
+              <Picker.Item label="Biweekly" value="biweekly" />
+              <Picker.Item label="Monthly" value="monthly" />
+            </Picker>
+          </View>
+
+          <TextInput
+            style={rnPageStyles.input}
             placeholder="Current Book"
-            style={pageStyles.input}
             value={formData.currentBook || ''}
-            onChange={handleChange}
+            onChangeText={(text) => handleChange('currentBook', text)}
           />
 
-          <select
-            name="regionId"
-            style={pageStyles.select}
-            value={formData.regionId}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Select a Region</option>
-            {regions.map((region) => (
-              <option key={region.id} value={region.id}>
-                {region.name}
-              </option>
-            ))}
-          </select>
+          <View style={rnPageStyles.pickerContainer}>
+            <Text style={rnPageStyles.label}>Region</Text>
+            <Picker
+              selectedValue={formData.regionId}
+              style={rnPageStyles.picker}
+              onValueChange={(value) => handleChange('regionId', value)}
+            >
+              <Picker.Item label="Select a Region" value="" />
+              {regions.map((region) => (
+                <Picker.Item key={region.id} label={region.name} value={region.id} />
+              ))}
+            </Picker>
+          </View>
 
-          <input
-            name="facilitatorName"
+          <TextInput
+            style={rnPageStyles.input}
             placeholder="Facilitator Name"
-            style={pageStyles.input}
             value={formData.facilitator.name}
-            onChange={(e) =>
-              setFormData((prev) => ({
-                ...prev,
-                facilitator: { ...prev.facilitator, name: e.target.value },
-              }))
-            }
+            onChangeText={(text) => handleFacilitatorChange('name', text)}
           />
-          <input
-            name="facilitatorContact"
+          
+          <TextInput
+            style={rnPageStyles.input}
             placeholder="Facilitator Contact"
-            style={pageStyles.input}
             value={formData.facilitator.contact}
-            onChange={(e) =>
-              setFormData((prev) => ({
-                ...prev,
-                facilitator: { ...prev.facilitator, contact: e.target.value },
-              }))
-            }
+            onChangeText={(text) => handleFacilitatorChange('contact', text)}
           />
 
-          <button type="submit" style={pageStyles.button}>
-            {editId ? 'Update Club' : 'Add Club'}
-          </button>
-        </form>
+          <TouchableOpacity style={rnPageStyles.button} onPress={handleSubmit}>
+            <Text style={rnPageStyles.buttonText}>
+              {editId ? 'Update Club' : 'Add Club'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       )}
 
-      {/* 📋 Render filtered list instead of all clubs */}
-          <div style={pageStyles.cardGrid}>
-            {filteredClubs.map((club) => (
-              <div key={club.id} style={pageStyles.card}>
-                <h3 style={pageStyles.cardTitle}>{club.name}</h3>
-                <p style={pageStyles.cardText}>{club.description}</p>
-                <p style={pageStyles.cardText}>
-                  <strong>Meeting Type:</strong> {club.meetingType}
-                </p>
-                {club.location?.address && (
-                  <p style={pageStyles.cardText}>
-                    <strong>Location:</strong> {club.location.address}
-                  </p>
-                )}
-                <p style={pageStyles.cardText}>
-                  <strong>Schedule:</strong> {club.schedule.day} at{" "}
-                  {club.schedule.time} ({club.schedule.frequency})
-                </p>
-                {club.currentBook && (
-                  <p style={pageStyles.cardText}>
-                    <strong>Current Book:</strong> {club.currentBook}
-                  </p>
-                )}
-                <p style={pageStyles.cardText}>
-                  <strong>Facilitator:</strong> {club.facilitator.name} (
-                  {club.facilitator.contact})
-                </p>
-                <button
-                  style={pageStyles.buttonSecondary}
-                  onClick={() => handleEdit(club)}
-                >
-                  Edit
-                </button>
-                <button
-                  style={{ ...pageStyles.buttonDanger, marginLeft: "0.5rem" }}
-                  onClick={() => handleDelete(club.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-
-
-    
+      {/* Clubs List */}
+      <View style={rnPageStyles.clubsList}>
+        {filteredClubs.map((club) => (
+          <View key={club.id} style={rnPageStyles.card}>
+            <Text style={rnPageStyles.cardTitle}>{club.name}</Text>
+            <Text style={rnPageStyles.cardText}>{club.description}</Text>
+            <Text style={rnPageStyles.cardText}>
+              <Text style={rnPageStyles.cardLabel}>Meeting Type: </Text>
+              {club.meetingType}
+            </Text>
+            {club.location?.address && (
+              <Text style={rnPageStyles.cardText}>
+                <Text style={rnPageStyles.cardLabel}>Location: </Text>
+                {club.location.address}
+              </Text>
+            )}
+            <Text style={rnPageStyles.cardText}>
+              <Text style={rnPageStyles.cardLabel}>Schedule: </Text>
+              {club.schedule.day} at {club.schedule.time} ({club.schedule.frequency})
+            </Text>
+            {club.currentBook && (
+              <Text style={rnPageStyles.cardText}>
+                <Text style={rnPageStyles.cardLabel}>Current Book: </Text>
+                {club.currentBook}
+              </Text>
+            )}
+            <Text style={rnPageStyles.cardText}>
+              <Text style={rnPageStyles.cardLabel}>Facilitator: </Text>
+              {club.facilitator.name} ({club.facilitator.contact})
+            </Text>
+            
+            <View style={rnPageStyles.cardActions}>
+              <TouchableOpacity
+                style={rnPageStyles.buttonSecondary}
+                onPress={() => handleEdit(club)}
+              >
+                <Text style={rnPageStyles.buttonText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={rnPageStyles.buttonDanger}
+                onPress={() => handleDelete(club.id)}
+              >
+                <Text style={rnPageStyles.buttonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ))}
+      </View>
+    </ScrollView>
   );
 };
 
