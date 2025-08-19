@@ -1,5 +1,5 @@
 // styles/rnPageStyles.ts
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, Dimensions, Platform } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -33,6 +33,30 @@ export const rnPageStyles = StyleSheet.create({
     borderBottomColor: colors.border,
     marginBottom: 16,
   },
+
+  pickerContainerFixed: {
+      borderWidth: 1,
+      borderColor: '#ddd',
+      borderRadius: 8,
+      backgroundColor: '#fff',
+      marginBottom: 16,
+      // Fix height issues
+      minHeight: Platform.OS === 'android' ? 50 : 'auto',
+      overflow: 'hidden',
+    },
+    pickerFixed: {
+      // Android specific fixes
+      ...(Platform.OS === 'android' && {
+        backgroundColor: 'transparent',
+        color: '#333',
+        height: 50,
+      }),
+      // iOS specific fixes
+      ...(Platform.OS === 'ios' && {
+        backgroundColor: 'transparent',
+        color: '#333',
+      }),
+    },
 
   header: {
     fontSize: 24,

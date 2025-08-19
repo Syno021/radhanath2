@@ -446,6 +446,7 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
                 selectedValue={formData.regionId}
                 onValueChange={(value: string) => handleInputChange('regionId', value)}
                 style={rnPageStyles.picker}
+                mode="dropdown" // Add this line
               >
                 <Picker.Item label="Select a region..." value="" />
                 {regions.map((region: Region) => (
