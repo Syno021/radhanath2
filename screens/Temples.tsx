@@ -9,7 +9,8 @@ import {
   Alert, 
   TextInput,
   StyleSheet,
-  Dimensions
+  Dimensions,
+  Image
 } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import TempleService, { Temple, Region } from '../services/TempleService';
@@ -50,6 +51,10 @@ export default function TempleScreen() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
   
+  // Image loading state
+  const [imageLoadingStates, setImageLoadingStates] = useState<{[key: string]: boolean}>({});
+  const [imageErrors, setImageErrors] = useState<{[key: string]: boolean}>({});
+  
   // User
   const userId = auth.currentUser?.uid;
 
@@ -78,6 +83,21 @@ export default function TempleScreen() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Image handling functions
+  const handleImageLoadStart = (templeId: string) => {
+    setImageLoadingStates(prev => ({ ...prev, [templeId]: true }));
+    setImageErrors(prev => ({ ...prev, [templeId]: false }));
+  };
+
+  const handleImageLoadEnd = (templeId: string) => {
+    setImageLoadingStates(prev => ({ ...prev, [templeId]: false }));
+  };
+
+  const handleImageError = (templeId: string) => {
+    setImageLoadingStates(prev => ({ ...prev, [templeId]: false }));
+    setImageErrors(prev => ({ ...prev, [templeId]: true }));
+  };
 
   // Scroll functions
   const scrollToTop = () => {
@@ -147,31 +167,60 @@ export default function TempleScreen() {
     });
   };
 
-  // Render temple item
+  // Render temple item with image
   const renderTemple = ({ item }: { item: Temple }) => (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>{item.name}</Text>
-      
-      {item.description && (
-        <Text style={styles.cardText}>{item.description}</Text>
+      {/* Temple Image */}
+      {item.imageUrl && (
+        <View style={styles.imageContainer}>
+          {imageLoadingStates[item.id] && (
+            <View style={styles.imageLoadingOverlay}>
+              <ActivityIndicator size="small" color={colors.churchOrange} />
+            </View>
+          )}
+          
+          {imageErrors[item.id] ? (
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name="image-outline" size={40} color="#ccc" />
+              <Text style={styles.imagePlaceholderText}>Image unavailable</Text>
+            </View>
+          ) : (
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.templeImage}
+              onLoadStart={() => handleImageLoadStart(item.id)}
+              onLoadEnd={() => handleImageLoadEnd(item.id)}
+              onError={() => handleImageError(item.id)}
+              resizeMode="cover"
+            />
+          )}
+        </View>
       )}
       
-      <Text style={styles.cardText}>
-        <Text style={styles.cardLabel}>🏛️ Region: </Text>
-        {item.regionName || getRegionName(item.regionId)}
-      </Text>
-      
-      <Text style={styles.cardText}>
-        <Text style={styles.cardLabel}>📅 Created: </Text>
-        {formatTimestamp(item.createdAt)}
-      </Text>
-      
-      {item.updatedAt && (
+      <View style={styles.cardContent}>
+        <Text style={styles.cardTitle}>{item.name}</Text>
+        
+        {item.description && (
+          <Text style={styles.cardText}>{item.description}</Text>
+        )}
+        
         <Text style={styles.cardText}>
-          <Text style={styles.cardLabel}>✏️ Updated: </Text>
-          {formatTimestamp(item.updatedAt)}
+          <Text style={styles.cardLabel}>🏛️ Region: </Text>
+          {item.regionName || getRegionName(item.regionId)}
         </Text>
-      )}
+        
+        <Text style={styles.cardText}>
+          <Text style={styles.cardLabel}>📅 Created: </Text>
+          {formatTimestamp(item.createdAt)}
+        </Text>
+        
+        {item.updatedAt && (
+          <Text style={styles.cardText}>
+            <Text style={styles.cardLabel}>✏️ Updated: </Text>
+            {formatTimestamp(item.updatedAt)}
+          </Text>
+        )}
+      </View>
     </View>
   );
 
@@ -436,7 +485,6 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
     borderRadius: 12,
-    padding: 16,
     marginBottom: 12,
     borderTopWidth: 4,
     borderTopColor: colors.churchOrange,
@@ -445,6 +493,55 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  
+  imageContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 180,
+    backgroundColor: colors.churchLight,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    overflow: 'hidden',
+  },
+  
+  templeImage: {
+    width: '100%',
+    height: '100%',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  
+  imageLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.churchLight,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  
+  imagePlaceholderText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#999',
+  },
+  
+  cardContent: {
+    padding: 16,
   },
   
   cardTitle: {

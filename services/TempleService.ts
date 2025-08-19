@@ -45,7 +45,7 @@ export interface TempleInput {
   name: string;
   description?: string;
   regionId: string;
-  imageUrl?: string; // Direct URL input
+  imageUrl?: string; // Direct URL input or data URL
 }
 
 export interface TempleCountByRegion {
@@ -132,7 +132,7 @@ export const TempleService = {
         description: templeData.description?.trim() || '',
         regionId: templeData.regionId,
         regionName: regionName,
-        imageUrl: templeData.imageUrl?.trim() || '', // Store URL directly
+        imageUrl: templeData.imageUrl?.trim() || '', // Store URL directly (including data URLs)
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -164,7 +164,7 @@ export const TempleService = {
         description: templeData.description?.trim() || '',
         regionId: templeData.regionId,
         regionName: regionName,
-        imageUrl: templeData.imageUrl?.trim() || '', // Store URL directly
+        imageUrl: templeData.imageUrl?.trim() || '', // Store URL directly (including data URLs)
         updatedAt: new Date()
       };
 
@@ -248,7 +248,7 @@ export const TempleService = {
     );
   },
 
-  // Validate temple data - simplified for URL input
+  // Validate temple data - updated to handle data URLs
   validateTempleData(templeData: TempleInput): string[] {
     const errors: string[] = [];
 
@@ -268,11 +268,27 @@ export const TempleService = {
       errors.push('Description must be less than 500 characters');
     }
 
-    // Simple URL validation
+    // Enhanced URL validation to handle both regular URLs and data URLs
     if (templeData.imageUrl && templeData.imageUrl.trim()) {
-      const urlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
-      if (!urlPattern.test(templeData.imageUrl.trim())) {
-        errors.push('Image URL must be a valid HTTP/HTTPS link to an image file (jpg, png, gif, webp)');
+      const imageUrl = templeData.imageUrl.trim();
+      
+      // Check if it's a data URL (base64)
+      const dataUrlPattern = /^data:image\/(jpeg|jpg|png|gif|webp);base64,/i;
+      
+      // Check if it's a regular HTTP/HTTPS URL
+      const httpUrlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
+      
+      // Must be either a valid data URL or a valid HTTP URL
+      if (!dataUrlPattern.test(imageUrl) && !httpUrlPattern.test(imageUrl)) {
+        errors.push('Image must be either a valid HTTP/HTTPS link to an image file (jpg, png, gif, webp) or an uploaded image');
+      }
+      
+      // Check data URL size (rough estimate - base64 is ~33% larger than original)
+      if (dataUrlPattern.test(imageUrl)) {
+        const base64Data = imageUrl.split(',')[1];
+        if (base64Data && base64Data.length > 2000000) { // ~1.5MB limit for base64
+          errors.push('Uploaded image is too large. Please choose a smaller image.');
+        }
       }
     }
 

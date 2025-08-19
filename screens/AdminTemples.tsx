@@ -14,6 +14,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import * as ImagePicker from 'expo-image-picker';
 import TempleService, { Temple, Region, TempleInput } from '../services/TempleService';
 import { rnPageStyles } from '../css/page';
 
@@ -37,6 +38,7 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
   const [formData, setFormData] = useState<TempleInput>(defaultFormState);
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [imageLoading, setImageLoading] = useState<boolean>(false);
   const [temples, setTemples] = useState<Temple[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [showForm, setShowForm] = useState<boolean>(false);
@@ -85,6 +87,57 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
     } catch (err) {
       setError('Failed to load regions');
       console.error(err);
+    }
+  };
+
+  // Image upload function that converts to data URL
+  const handleImageUpload = async (): Promise<void> => {
+    try {
+      // Request media library permissions
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission Required', 'Permission to access camera roll is required!');
+        return;
+      }
+
+      setImageLoading(true);
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8, // Reduce quality to keep data URL manageable
+        base64: true, // This is key - we need base64 data
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const asset = result.assets[0];
+        
+        if (asset.base64) {
+          // Create data URL from base64
+          const dataUrl = `data:image/jpeg;base64,${asset.base64}`;
+          
+          // Insert into the imageUrl field
+          setFormData(prev => ({
+            ...prev,
+            imageUrl: dataUrl
+          }));
+          
+          // Clear validation errors
+          if (validationErrors.length > 0) {
+            setValidationErrors([]);
+          }
+        } else {
+          Alert.alert('Error', 'Failed to process the selected image');
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to select image');
+    } finally {
+      setImageLoading(false);
     }
   };
 
@@ -242,6 +295,14 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
     return 'N/A';
   };
 
+  // Clear image URL
+  const handleClearImage = (): void => {
+    setFormData(prev => ({
+      ...prev,
+      imageUrl: ''
+    }));
+  };
+
   // Render loading state
   if (loading && temples.length === 0) {
     return (
@@ -397,8 +458,38 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
               </Picker>
             </View>
 
-            {/* Image URL Input - Simplified */}
-            <Text style={rnPageStyles.label}>Image URL (Optional)</Text>
+            {/* Image Upload Section */}
+            <Text style={rnPageStyles.label}>Image</Text>
+            <View style={styles.imageUploadContainer}>
+              <TouchableOpacity 
+                style={[styles.uploadButton, imageLoading && styles.uploadButtonDisabled]} 
+                onPress={handleImageUpload}
+                disabled={imageLoading || loading}
+              >
+                {imageLoading ? (
+                  <ActivityIndicator color="white" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="camera" size={20} color="white" style={styles.uploadIcon} />
+                    <Text style={styles.uploadButtonText}>Upload Image</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              
+              {formData.imageUrl && (
+                <TouchableOpacity 
+                  style={styles.clearImageButton} 
+                  onPress={handleClearImage}
+                  disabled={loading}
+                >
+                  <Ionicons name="trash" size={16} color="#ff4444" />
+                  <Text style={styles.clearImageText}>Clear</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Image URL Input - Manual entry option */}
+            <Text style={rnPageStyles.label}>Or enter Image URL manually</Text>
             <TextInput
               style={rnPageStyles.input}
               value={formData.imageUrl}
@@ -607,6 +698,49 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 16,
     textAlign: 'center',
+  },
+  // Image Upload Styles
+  imageUploadContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 12,
+  },
+  uploadButton: {
+    backgroundColor: '#0066CC',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    minWidth: 120,
+    justifyContent: 'center',
+  },
+  uploadButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  uploadIcon: {
+    marginRight: 8,
+  },
+  uploadButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  clearImageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ff4444',
+    gap: 4,
+  },
+  clearImageText: {
+    color: '#ff4444',
+    fontSize: 12,
   },
   // Image Preview Styles
   imagePreviewContainer: {
