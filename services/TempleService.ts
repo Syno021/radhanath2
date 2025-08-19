@@ -18,13 +18,14 @@ import { db } from '../firebaseCo';
 const TEMPLES_COLLECTION = 'temples';
 const REGIONS_COLLECTION = 'regions';
 
-// Temple model interface
+// Temple model interface - simplified without storage references
 export interface Temple {
   id: string;
   name: string;
   description?: string;
   regionId: string;
   regionName?: string;
+  imageUrl?: string; // Simple URL string
   createdAt: Date | Timestamp;
   updatedAt: Date | Timestamp;
 }
@@ -39,10 +40,12 @@ export interface Region {
   };
 }
 
+// Simplified interface - just URL input
 export interface TempleInput {
   name: string;
   description?: string;
   regionId: string;
+  imageUrl?: string; // Direct URL input
 }
 
 export interface TempleCountByRegion {
@@ -118,7 +121,7 @@ export const TempleService = {
     }
   },
 
-  // Add new temple
+  // Add new temple - simplified
   async addTemple(templeData: TempleInput): Promise<Temple> {
     try {
       // Get region name for reference
@@ -129,6 +132,7 @@ export const TempleService = {
         description: templeData.description?.trim() || '',
         regionId: templeData.regionId,
         regionName: regionName,
+        imageUrl: templeData.imageUrl?.trim() || '', // Store URL directly
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -146,17 +150,21 @@ export const TempleService = {
     }
   },
 
-  // Update temple
+  // Update temple - simplified
   async updateTemple(id: string, templeData: TempleInput): Promise<Temple> {
     try {
+      // Get existing temple
+      const existingTemple = await this.getTempleById(id);
+      
       // Get region name for reference
       const regionName = await this.getRegionName(templeData.regionId);
       
-      const updatedTemple = {
+      const updatedTemple: Partial<Temple> = {
         name: templeData.name.trim(),
         description: templeData.description?.trim() || '',
         regionId: templeData.regionId,
         regionName: regionName,
+        imageUrl: templeData.imageUrl?.trim() || '', // Store URL directly
         updatedAt: new Date()
       };
 
@@ -166,19 +174,20 @@ export const TempleService = {
       return {
         id,
         ...updatedTemple,
-        createdAt: new Date() // This would need to be fetched from the existing document in a real implementation
-      };
+        createdAt: existingTemple.createdAt
+      } as Temple;
     } catch (error) {
       console.error('Error updating temple:', error);
       throw new Error('Failed to update temple');
     }
   },
 
-  // Delete temple
+  // Delete temple - simplified (no image deletion needed)
   async deleteTemple(id: string): Promise<boolean> {
     try {
       const templeRef = doc(db, TEMPLES_COLLECTION, id);
       await deleteDoc(templeRef);
+      
       return true;
     } catch (error) {
       console.error('Error deleting temple:', error);
@@ -239,7 +248,7 @@ export const TempleService = {
     );
   },
 
-  // Validate temple data
+  // Validate temple data - simplified for URL input
   validateTempleData(templeData: TempleInput): string[] {
     const errors: string[] = [];
 
@@ -257,6 +266,14 @@ export const TempleService = {
 
     if (templeData.description && templeData.description.length > 500) {
       errors.push('Description must be less than 500 characters');
+    }
+
+    // Simple URL validation
+    if (templeData.imageUrl && templeData.imageUrl.trim()) {
+      const urlPattern = /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i;
+      if (!urlPattern.test(templeData.imageUrl.trim())) {
+        errors.push('Image URL must be a valid HTTP/HTTPS link to an image file (jpg, png, gif, webp)');
+      }
     }
 
     return errors;

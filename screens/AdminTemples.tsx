@@ -10,16 +10,21 @@ import {
   StyleSheet,
   ActivityIndicator,
   Platform,
+  Image,
+  Dimensions,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import TempleService, { Temple, Region, TempleInput } from '../services/TempleService';
 import { rnPageStyles } from '../css/page';
 
-// Default form state
+const { width: screenWidth } = Dimensions.get('window');
+
+// Default form state - simplified
 const defaultFormState: TempleInput = {
   name: '',
   description: '',
   regionId: '',
+  imageUrl: '', // Simple URL string
 };
 
 interface AdminTemplesProps {}
@@ -28,7 +33,7 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
   // Refs
   const scrollViewRef = useRef<ScrollView>(null);
   
-  // State management
+  // State management - simplified (removed image-related states)
   const [formData, setFormData] = useState<TempleInput>(defaultFormState);
   const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -41,7 +46,7 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
   const [filteredTemples, setFilteredTemples] = useState<Temple[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  // Load data on component mount
+  // Load initial data on mount
   useEffect(() => {
     loadInitialData();
   }, []);
@@ -145,6 +150,7 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
       name: temple.name,
       description: temple.description || '',
       regionId: temple.regionId,
+      imageUrl: temple.imageUrl || '',
     });
     setEditingTemple(temple);
     setEditId(temple.id);
@@ -349,7 +355,7 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
         {/* Form */}
         {showForm && (
           <View style={rnPageStyles.form}>
-            <Text >
+            <Text>
               {editingTemple ? 'Edit Temple' : 'Add New Temple'}
             </Text>
 
@@ -391,6 +397,32 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
               </Picker>
             </View>
 
+            {/* Image URL Input - Simplified */}
+            <Text style={rnPageStyles.label}>Image URL (Optional)</Text>
+            <TextInput
+              style={rnPageStyles.input}
+              value={formData.imageUrl}
+              onChangeText={(value: string) => handleInputChange('imageUrl', value)}
+              placeholder="Enter image URL (e.g., https://example.com/image.jpg)"
+              keyboardType="url"
+              autoCapitalize="none"
+            />
+
+            {/* Image Preview */}
+            {formData.imageUrl && formData.imageUrl.trim() && (
+              <View style={styles.imagePreviewContainer}>
+                <Text style={styles.imagePreviewLabel}>Preview:</Text>
+                <Image 
+                  source={{ uri: formData.imageUrl }} 
+                  style={styles.previewImage}
+                  resizeMode="cover"
+                  onError={(error) => {
+                    console.log('Image loading error:', error.nativeEvent.error);
+                  }}
+                />
+              </View>
+            )}
+
             <View style={styles.formButtons}>
               <TouchableOpacity 
                 style={[rnPageStyles.button, loading && rnPageStyles.buttonDisabled]} 
@@ -424,45 +456,61 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
         <View style={rnPageStyles.clubsList}>
           {filteredTemples.map((temple: Temple) => (
             <View key={temple.id} style={rnPageStyles.card}>
-              <Text style={rnPageStyles.cardTitle}>{temple.name}</Text>
-              
-              {temple.description && (
-                <Text style={rnPageStyles.cardText}>{temple.description}</Text>
+              {/* Temple Image */}
+              {temple.imageUrl && (
+                <View style={styles.cardImageContainer}>
+                  <Image 
+                    source={{ uri: temple.imageUrl }} 
+                    style={styles.cardImage}
+                    resizeMode="cover"
+                    onError={(error) => {
+                      console.log('Image loading error:', error.nativeEvent.error);
+                    }}
+                  />
+                </View>
               )}
               
-              <Text style={rnPageStyles.cardText}>
-                <Text style={rnPageStyles.cardLabel}>🏛️ Region: </Text>
-                {temple.regionName || getRegionName(temple.regionId)}
-              </Text>
-              
-              <Text style={rnPageStyles.cardText}>
-                <Text style={rnPageStyles.cardLabel}>📅 Created: </Text>
-                {formatTimestamp(temple.createdAt)}
-              </Text>
-              
-              {temple.updatedAt && (
-                <Text style={rnPageStyles.cardText}>
-                  <Text style={rnPageStyles.cardLabel}>✏️ Updated: </Text>
-                  {formatTimestamp(temple.updatedAt)}
-                </Text>
-              )}
-
-              <View style={rnPageStyles.cardActions}>
-                <TouchableOpacity 
-                  style={[rnPageStyles.buttonSecondary, loading && rnPageStyles.buttonDisabled]} 
-                  onPress={() => handleEdit(temple)}
-                  disabled={loading}
-                >
-                  <Text style={rnPageStyles.buttonText}>Edit</Text>
-                </TouchableOpacity>
+              <View style={styles.cardContent}>
+                <Text style={rnPageStyles.cardTitle}>{temple.name}</Text>
                 
-                <TouchableOpacity 
-                  style={[rnPageStyles.buttonDanger, loading && rnPageStyles.buttonDisabled]} 
-                  onPress={() => handleDelete(temple.id)}
-                  disabled={loading}
-                >
-                  <Text style={rnPageStyles.buttonText}>Delete</Text>
-                </TouchableOpacity>
+                {temple.description && (
+                  <Text style={rnPageStyles.cardText}>{temple.description}</Text>
+                )}
+                
+                <Text style={rnPageStyles.cardText}>
+                  <Text style={rnPageStyles.cardLabel}>🏛️ Region: </Text>
+                  {temple.regionName || getRegionName(temple.regionId)}
+                </Text>
+                
+                <Text style={rnPageStyles.cardText}>
+                  <Text style={rnPageStyles.cardLabel}>📅 Created: </Text>
+                  {formatTimestamp(temple.createdAt)}
+                </Text>
+                
+                {temple.updatedAt && (
+                  <Text style={rnPageStyles.cardText}>
+                    <Text style={rnPageStyles.cardLabel}>✏️ Updated: </Text>
+                    {formatTimestamp(temple.updatedAt)}
+                  </Text>
+                )}
+
+                <View style={rnPageStyles.cardActions}>
+                  <TouchableOpacity 
+                    style={[rnPageStyles.buttonSecondary, loading && rnPageStyles.buttonDisabled]} 
+                    onPress={() => handleEdit(temple)}
+                    disabled={loading}
+                  >
+                    <Text style={rnPageStyles.buttonText}>Edit</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[rnPageStyles.buttonDanger, loading && rnPageStyles.buttonDisabled]} 
+                    onPress={() => handleDelete(temple.id)}
+                    disabled={loading}
+                  >
+                    <Text style={rnPageStyles.buttonText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           ))}
@@ -559,6 +607,38 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 16,
     textAlign: 'center',
+  },
+  // Image Preview Styles
+  imagePreviewContainer: {
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  imagePreviewLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  previewImage: {
+    width: screenWidth * 0.8,
+    height: 200,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  // Card Image Styles
+  cardImageContainer: {
+    width: '100%',
+    height: 200,
+    backgroundColor: '#f0f0f0',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    overflow: 'hidden',
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cardContent: {
+    padding: 16,
   },
 });
 

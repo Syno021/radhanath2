@@ -25,13 +25,13 @@ export default function UserTabs() {
         tabBarStyle: { backgroundColor: "#FFF5E6" },
       }}
     >
-      <Tab.Screen
+      {/* <Tab.Screen
         name="Home"
         component={Home}
         options={{
           tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} />,
         }}
-      />
+      /> */}
       <Tab.Screen
         name="Explore"
         component={ExploreStack}
