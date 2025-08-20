@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -41,6 +41,8 @@ const defaultFormState: Omit<ReadingClub, 'id' | 'createdAt' | 'updatedAt'> = {
 };
 
 const AdminClubs: React.FC = () => {
+  const scrollViewRef = useRef<ScrollView>(null);
+  
   const [formData, setFormData] = useHotReload(
     'admin_clubs_form',
     defaultFormState
@@ -67,6 +69,10 @@ const AdminClubs: React.FC = () => {
   useEffect(() => {
     handleFilter();
   }, [clubs, searchTerm]);
+
+  const scrollToTop = () => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
 
   const handleSearchChange = (text: string) => {
     setSearchTerm(text);
@@ -95,6 +101,7 @@ const AdminClubs: React.FC = () => {
       setClubs(data);
     } catch (err) {
       setError("Failed to load clubs");
+      console.error('Error loading clubs:', err);
     } finally {
       setLoading(false);
     }
@@ -153,17 +160,27 @@ const AdminClubs: React.FC = () => {
   const handleSubmit = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       if (editId) {
         await updateReadingClub(editId, formData);
       } else {
         await addReadingClub(formData);
       }
+      
       setShowForm(false);
       setFormData(defaultFormState);
       setEditId(null);
       await loadClubs();
+      
+      // Show success message
+      Alert.alert(
+        'Success',
+        editId ? 'Club updated successfully!' : 'Club added successfully!'
+      );
     } catch (err) {
-      setError("Failed to save club");
+      setError(editId ? "Failed to update club" : "Failed to add club");
+      console.error('Error saving club:', err);
     } finally {
       setLoading(false);
     }
@@ -174,23 +191,38 @@ const AdminClubs: React.FC = () => {
     setFormData(rest);
     setEditId(id);
     setShowForm(true);
+    
+    // Scroll to top to show the form
+    scrollToTop();
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, clubName: string) => {
     Alert.alert(
       'Delete Club',
-      'Are you sure you want to delete this club?',
+      `Are you sure you want to delete "${clubName}"? This action cannot be undone.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Cancel', 
+          style: 'cancel' 
+        },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
             try {
+              setLoading(true);
+              setError(null);
+              
               await deleteReadingClub(id);
               await loadClubs();
+              
+              Alert.alert('Success', 'Club deleted successfully!');
             } catch (err) {
               setError("Failed to delete club");
+              console.error('Error deleting club:', err);
+              Alert.alert('Error', 'Failed to delete club. Please try again.');
+            } finally {
+              setLoading(false);
             }
           },
         },
@@ -201,6 +233,28 @@ const AdminClubs: React.FC = () => {
   const resetSearch = () => {
     setSearchTerm('');
   };
+
+  const handleCancelEdit = () => {
+    setShowForm(false);
+    setFormData(defaultFormState);
+    setEditId(null);
+    setError(null);
+  };
+
+  const pickerContainer = (
+    <View style={styles.pickerContainer}>
+      <Picker
+        selectedValue={formData.regionId}
+        onValueChange={(v) => handleChange('regionId', v)}
+        style={styles.picker}
+      >
+        <Picker.Item label="Select Region" value="" />
+        {regions.map((r) => (
+          <Picker.Item key={r.id} label={r.name} value={r.id} />
+        ))}
+      </Picker>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -215,7 +269,12 @@ const AdminClubs: React.FC = () => {
         </View>
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.content} 
+        contentContainerStyle={{ paddingBottom: 40 }}
+        showsVerticalScrollIndicator={true}
+      >
         {/* Search Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Search Clubs</Text>
@@ -247,7 +306,14 @@ const AdminClubs: React.FC = () => {
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.primaryButton}
-            onPress={() => setShowForm((prev) => !prev)}
+            onPress={() => {
+              setShowForm((prev) => !prev);
+              if (!showForm) {
+                setFormData(defaultFormState);
+                setEditId(null);
+                setError(null);
+              }
+            }}
           >
             <Ionicons name={showForm ? "close" : "add-circle-outline"} size={20} color="#FFF" />
             <Text style={styles.buttonText}>{showForm ? 'Close Form' : 'Add Reading Club'}</Text>
@@ -267,28 +333,29 @@ const AdminClubs: React.FC = () => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{editId ? 'Edit Club' : 'Add Club'}</Text>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Club Name</Text>
+              <Text style={styles.label}>Club Name *</Text>
               <TextInput
                 style={styles.input}
                 value={formData.name}
                 onChangeText={(t) => handleChange('name', t)}
-                placeholder="Club Name"
+                placeholder="Enter club name"
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Description</Text>
+              <Text style={styles.label}>Description *</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
                 value={formData.description}
                 onChangeText={(t) => handleChange('description', t)}
-                placeholder="Description"
+                placeholder="Enter club description"
                 multiline
+                numberOfLines={4}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Meeting Type</Text>
+              <Text style={styles.label}>Meeting Type *</Text>
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={formData.meetingType}
@@ -308,6 +375,7 @@ const AdminClubs: React.FC = () => {
                 style={styles.input}
                 value={formData.location?.address || ''}
                 onChangeText={(t) => handleLocationChange('address', t)}
+                placeholder="Enter meeting address"
               />
             </View>
 
@@ -319,6 +387,7 @@ const AdminClubs: React.FC = () => {
                   value={formData.location?.latitude?.toString() || '0'}
                   onChangeText={(t) => handleLocationChange('latitude', t)}
                   keyboardType="numeric"
+                  placeholder="0.0"
                 />
               </View>
               <View style={styles.inputWrapper}>
@@ -328,31 +397,34 @@ const AdminClubs: React.FC = () => {
                   value={formData.location?.longitude?.toString() || '0'}
                   onChangeText={(t) => handleLocationChange('longitude', t)}
                   keyboardType="numeric"
+                  placeholder="0.0"
                 />
               </View>
             </View>
 
             <View style={styles.row}>
               <View style={styles.inputWrapper}>
-                <Text style={styles.label}>Day</Text>
+                <Text style={styles.label}>Meeting Day *</Text>
                 <TextInput
                   style={styles.input}
                   value={formData.schedule.day}
                   onChangeText={(t) => handleScheduleChange('day', t)}
+                  placeholder="e.g., Monday"
                 />
               </View>
               <View style={styles.inputWrapper}>
-                <Text style={styles.label}>Time</Text>
+                <Text style={styles.label}>Meeting Time *</Text>
                 <TextInput
                   style={styles.input}
                   value={formData.schedule.time}
                   onChangeText={(t) => handleScheduleChange('time', t)}
+                  placeholder="e.g., 18:00"
                 />
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Frequency</Text>
+              <Text style={styles.label}>Meeting Frequency *</Text>
               <View style={styles.pickerContainer}>
                 <Picker
                   selectedValue={formData.schedule.frequency}
@@ -372,45 +444,41 @@ const AdminClubs: React.FC = () => {
                 style={styles.input}
                 value={formData.currentBook}
                 onChangeText={(t) => handleChange('currentBook', t)}
+                placeholder="Enter current book title"
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Region</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={formData.regionId}
-                  onValueChange={(v) => handleChange('regionId', v)}
-                  style={styles.picker}
-                >
-                  <Picker.Item label="Select Region" value="" />
-                  {regions.map((r) => (
-                    <Picker.Item key={r.id} label={r.name} value={r.id} />
-                  ))}
-                </Picker>
-              </View>
+              <Text style={styles.label}>Region *</Text>
+              {pickerContainer}
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Facilitator Name</Text>
+              <Text style={styles.label}>Facilitator Name *</Text>
               <TextInput
                 style={styles.input}
                 value={formData.facilitator.name}
                 onChangeText={(t) => handleFacilitatorChange('name', t)}
+                placeholder="Enter facilitator name"
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Facilitator Contact</Text>
+              <Text style={styles.label}>Facilitator Contact *</Text>
               <TextInput
                 style={styles.input}
                 value={formData.facilitator.contact}
                 onChangeText={(t) => handleFacilitatorChange('contact', t)}
+                placeholder="Enter phone or email"
               />
             </View>
 
             <View style={styles.formButtons}>
-              <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit} disabled={loading}>
+              <TouchableOpacity 
+                style={[styles.primaryButton, loading && styles.disabledButton]} 
+                onPress={handleSubmit} 
+                disabled={loading}
+              >
                 {loading ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
@@ -420,7 +488,11 @@ const AdminClubs: React.FC = () => {
                   </>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowForm(false)}>
+              <TouchableOpacity 
+                style={styles.secondaryButton} 
+                onPress={handleCancelEdit}
+                disabled={loading}
+              >
                 <Ionicons name="close-circle-outline" size={20} color="#FF6B00" />
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </TouchableOpacity>
@@ -428,33 +500,72 @@ const AdminClubs: React.FC = () => {
           </View>
         )}
 
+        {/* Loading indicator for general loading */}
+        {loading && !showForm && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#FF6B00" />
+            <Text style={styles.loadingText}>Loading...</Text>
+          </View>
+        )}
+
         {/* Clubs List */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Clubs ({filteredClubs.length})</Text>
-          {filteredClubs.map((club) => (
-            <View key={club.id} style={styles.groupCard}>
-              <Text style={styles.groupName}>{club.name}</Text>
-              <Text style={styles.groupDescription}>{club.description}</Text>
-              <Text style={styles.groupDescription}>📖 Book: {club.currentBook || 'N/A'}</Text>
-              <Text style={styles.groupDescription}>
-                Facilitator: {club.facilitator.name} ({club.facilitator.contact})
+          {filteredClubs.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="book-outline" size={48} color="#CCC" />
+              <Text style={styles.emptyStateText}>
+                {searchTerm ? 'No clubs found matching your search' : 'No clubs available'}
               </Text>
-              <Text style={styles.groupDescription}>
-                Schedule: {club.schedule.day} {club.schedule.time} ({club.schedule.frequency})
-              </Text>
-
-              <View style={styles.groupActions}>
-                <TouchableOpacity style={[styles.actionButton, styles.editButton]} onPress={() => handleEdit(club)}>
-                  <Ionicons name="pencil" size={16} color="#FF6B00" />
-                  <Text style={styles.editButtonText}>Edit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={() => handleDelete(club.id)}>
-                  <Ionicons name="trash" size={16} color="#FF4444" />
-                  <Text style={styles.deleteButtonText}>Delete</Text>
-                </TouchableOpacity>
-              </View>
             </View>
-          ))}
+          ) : (
+            filteredClubs.map((club) => (
+              <View key={club.id} style={styles.groupCard}>
+                <View style={styles.groupHeader}>
+                  <Text style={styles.groupName}>{club.name}</Text>
+                  <View style={styles.statusBadge}>
+                    <Text style={styles.statusText}>{club.meetingType}</Text>
+                  </View>
+                </View>
+                
+                <Text style={styles.groupDescription}>{club.description}</Text>
+                
+                <View style={styles.groupInfo}>
+                  <Text style={styles.groupInfoItem}>
+                    📖 Book: {club.currentBook || 'Not specified'}
+                  </Text>
+                  <Text style={styles.groupInfoItem}>
+                    👤 Facilitator: {club.facilitator.name} ({club.facilitator.contact})
+                  </Text>
+                  <Text style={styles.groupInfoItem}>
+                    📅 Schedule: {club.schedule.day} at {club.schedule.time} ({club.schedule.frequency})
+                  </Text>
+                  <Text style={styles.groupInfoItem}>
+                    👥 Members: {club.members?.length || 0} | Join Requests: {club.joinRequests?.length || 0}
+                  </Text>
+                </View>
+
+                <View style={styles.groupActions}>
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.editButton]} 
+                    onPress={() => handleEdit(club)}
+                    disabled={loading}
+                  >
+                    <Ionicons name="pencil" size={16} color="#FF6B00" />
+                    <Text style={styles.editButtonText}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.actionButton, styles.deleteButton]} 
+                    onPress={() => handleDelete(club.id, club.name)}
+                    disabled={loading}
+                  >
+                    <Ionicons name="trash" size={16} color="#FF4444" />
+                    <Text style={styles.deleteButtonText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
         </View>
       </ScrollView>
     </View>
@@ -486,12 +597,16 @@ const styles = StyleSheet.create({
   searchButtons: { flexDirection: 'row', gap: 12 },
   primaryButton: {
     backgroundColor: '#FF6B00', borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    paddingVertical: 18,
+    paddingVertical: 18, paddingHorizontal: 16,
   },
   secondaryButton: {
     backgroundColor: 'transparent', borderWidth: 1, borderColor: '#E0E0E0',
     borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    paddingVertical: 18,
+    paddingVertical: 18, paddingHorizontal: 16,
+  },
+  disabledButton: {
+    backgroundColor: '#CCC',
+    opacity: 0.7,
   },
   buttonText: { color: '#FFF', fontSize: 16, fontWeight: '600', marginLeft: 8 },
   secondaryButtonText: { color: '#FF6B00', fontSize: 16, marginLeft: 8 },
@@ -499,14 +614,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFEBEE',
     borderColor: '#FFCDD2', borderWidth: 1, borderRadius: 8, padding: 16, marginBottom: 16,
   },
-  errorText: { color: '#FF4444', marginLeft: 8 },
+  errorText: { color: '#FF4444', marginLeft: 8, flex: 1 },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  loadingText: {
+    marginTop: 8,
+    color: '#666',
+    fontSize: 16,
+  },
   inputGroup: { marginBottom: 16 },
-  label: { fontSize: 16, fontWeight: '500', marginBottom: 8 },
+  label: { fontSize: 16, fontWeight: '500', marginBottom: 8, color: '#1A1A1A' },
   input: {
     borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, padding: 12,
     fontSize: 16, backgroundColor: '#FFF',
   },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
+  pickerContainer: {
+    borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, backgroundColor: '#FFF',
+  },
+  picker: { height: 50 },
   row: { flexDirection: 'row', gap: 12 },
   inputWrapper: { flex: 1 },
   formButtons: { flexDirection: 'row', gap: 12, marginTop: 8 },
@@ -514,14 +642,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF9F5', borderRadius: 12, padding: 16,
     marginBottom: 12, borderWidth: 1, borderColor: '#FFE4CC',
   },
-  groupName: { fontSize: 16, fontWeight: '500', marginBottom: 4 },
-  groupDescription: { fontSize: 14, color: '#666', marginBottom: 6 },
-  groupActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 8 },
+  groupHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8,
+  },
+  groupName: { fontSize: 18, fontWeight: '600', color: '#1A1A1A', flex: 1, marginRight: 12 },
+  statusBadge: {
+    backgroundColor: '#FF6B00', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12,
+  },
+  statusText: { color: '#FFF', fontSize: 12, fontWeight: '500', textTransform: 'capitalize' },
+  groupDescription: { fontSize: 14, color: '#666', marginBottom: 12, lineHeight: 20 },
+  groupInfo: { marginBottom: 12 },
+  groupInfoItem: { fontSize: 14, color: '#666', marginBottom: 4 },
+  groupActions: { flexDirection: 'row', gap: 8 },
+  actionButton: { 
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
+    paddingVertical: 12, borderRadius: 8 
+  },
   editButton: { backgroundColor: '#FFF4E6', borderWidth: 1, borderColor: '#FF6B00' },
   editButtonText: { color: '#FF6B00', marginLeft: 4, fontWeight: '500' },
   deleteButton: { backgroundColor: '#FFEBEE', borderWidth: 1, borderColor: '#FF4444' },
   deleteButtonText: { color: '#FF4444', marginLeft: 4, fontWeight: '500' },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateText: {
+    color: '#999',
+    fontSize: 16,
+    marginTop: 12,
+    textAlign: 'center',
+  },
 });
 
 export default AdminClubs;

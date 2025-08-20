@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,7 @@ import {
   deleteWhatsappGroup,
 } from '../services/WhatsappGroupService';
 import { WhatsappGroup } from '../models/whatsappGroup.model';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebaseCo';
 
 // Define default form state
@@ -35,6 +35,8 @@ const defaultFormState: Omit<WhatsappGroup, 'id'> = {
 };
 
 const AdminGroups: React.FC = () => {
+  const scrollViewRef = useRef<ScrollView>(null);
+  
   const [formData, setFormData, clearFormData] = useHotReload(
     'admin_groups_form',
     defaultFormState
@@ -58,6 +60,10 @@ const AdminGroups: React.FC = () => {
     fetchGroups();
     fetchRegions();
   }, []);
+
+  const scrollToTop = () => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
 
   const fetchGroups = async () => {
     setLoading(true);
@@ -157,9 +163,15 @@ const AdminGroups: React.FC = () => {
     });
     setShowForm(true);
     setEditId(group.id);
+    
+    // Scroll to top when editing
+    scrollToTop();
   };
 
   const handleDelete = async (id: string) => {
+    // Get the group data to find the regionId before deletion
+    const groupToDelete = groups.find(g => g.id === id);
+    
     Alert.alert(
       'Delete Group',
       'Are you sure you want to delete this group?',
@@ -171,7 +183,17 @@ const AdminGroups: React.FC = () => {
           onPress: async () => {
             setLoading(true);
             try {
+              // 1. Delete from whatsapp-groups collection
               await deleteWhatsappGroup(id);
+              
+              // 2. Remove from region's whatsappGroups array if regionId exists
+              if (groupToDelete?.regionId) {
+                const regionRef = doc(db, 'regions', groupToDelete.regionId);
+                await updateDoc(regionRef, {
+                  whatsappGroups: arrayRemove(id),
+                });
+              }
+              
               await fetchGroups();
             } catch (err) {
               console.error('Error deleting group:', err);
@@ -253,6 +275,7 @@ const AdminGroups: React.FC = () => {
       </View>
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.content}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
