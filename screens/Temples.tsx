@@ -1,12 +1,11 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   SafeAreaView, 
   View, 
   Text, 
-  FlatList, 
+  ScrollView, 
   TouchableOpacity, 
   ActivityIndicator, 
-  Alert, 
   TextInput,
   StyleSheet,
   Dimensions,
@@ -14,11 +13,10 @@ import {
 } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import TempleService, { Temple, Region } from '../services/TempleService';
-import { auth } from '../firebaseCo';
 
 const { width } = Dimensions.get('window');
 
-// Colors and styles
+// Theme colors
 const colors = {
   churchOrange: "#FF8C42",
   churchDark: "#5A2D0C",
@@ -32,117 +30,62 @@ const colors = {
 };
 
 export default function TempleScreen() {
-  const flatListRef = useRef<FlatList<Temple>>(null);
-  
-  // Scroll state
-  const [scrollPosition, setScrollPosition] = useState(0);
-  const [isAtTop, setIsAtTop] = useState(true);
-  const [isAtBottom, setIsAtBottom] = useState(false);
-  const [contentHeight, setContentHeight] = useState(0);
-  const [scrollViewHeight, setScrollViewHeight] = useState(0);
-  
-  // Data state
+  const scrollViewRef = useRef<ScrollView>(null);
+
   const [temples, setTemples] = useState<Temple[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  
-  // Search state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isSearchActive, setIsSearchActive] = useState(false);
-  
-  // Image loading state
-  const [imageLoadingStates, setImageLoadingStates] = useState<{[key: string]: boolean}>({});
-  const [imageErrors, setImageErrors] = useState<{[key: string]: boolean}>({});
-  
-  // User
-  const userId = auth.currentUser?.uid;
-
-  // Load data
-  const loadData = async (showRefreshing = false) => {
-    try {
-      if (showRefreshing) setRefreshing(true);
-      else setLoading(true);
-
-      const [templesData, regionsData] = await Promise.all([
-        TempleService.getTemples(),
-        TempleService.getRegions()
-      ]);
-
-      setTemples(templesData);
-      setRegions(regionsData);
-    } catch (error) {
-      console.error('Error loading data:', error);
-      Alert.alert('Error', 'Failed to load temples data.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [filteredTemples, setFilteredTemples] = useState<Temple[]>([]);
 
   useEffect(() => {
-    loadData();
+    loadInitialData();
   }, []);
 
-  // Image handling functions
-  const handleImageLoadStart = (templeId: string) => {
-    setImageLoadingStates(prev => ({ ...prev, [templeId]: true }));
-    setImageErrors(prev => ({ ...prev, [templeId]: false }));
-  };
-
-  const handleImageLoadEnd = (templeId: string) => {
-    setImageLoadingStates(prev => ({ ...prev, [templeId]: false }));
-  };
-
-  const handleImageError = (templeId: string) => {
-    setImageLoadingStates(prev => ({ ...prev, [templeId]: false }));
-    setImageErrors(prev => ({ ...prev, [templeId]: true }));
-  };
-
-  // Scroll functions
-  const scrollToTop = () => {
-    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-  };
-  
-  const scrollToBottom = () => {
-    flatListRef.current?.scrollToEnd({ animated: true });
-  };
-  
-  const handleScroll = (event: any) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    const currentScrollPosition = contentOffset.y;
-    
-    setScrollPosition(currentScrollPosition);
-    setContentHeight(contentSize.height);
-    setScrollViewHeight(layoutMeasurement.height);
-    
-    const threshold = 50;
-    setIsAtTop(currentScrollPosition < threshold);
-    setIsAtBottom(
-      currentScrollPosition > contentSize.height - layoutMeasurement.height - threshold
-    );
-  };
-
-  // Search functionality
-  const filteredTemples = useMemo(() => {
-    if (!searchTerm.trim()) {
-      return temples;
-    }
-    return TempleService.searchTemples(temples, searchTerm);
+  useEffect(() => {
+    const filtered = TempleService.searchTemples(temples, searchTerm);
+    setFilteredTemples(filtered);
   }, [temples, searchTerm]);
 
-  const handleSearch = () => {
-    setIsSearchActive(true);
-    scrollToTop();
+  const loadInitialData = async (): Promise<void> => {
+    await Promise.all([loadTemples(), loadRegions()]);
   };
 
-  const handleReset = () => {
+  const loadTemples = async (): Promise<void> => {
+    try {
+      setLoading(true);
+      const data = await TempleService.getTemples();
+      setTemples(data);
+      setFilteredTemples(data);
+    } catch (err) {
+      setError('Failed to load temples');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadRegions = async (): Promise<void> => {
+    try {
+      const data = await TempleService.getRegions();
+      setRegions(data);
+    } catch (err) {
+      setError('Failed to load regions');
+      console.error(err);
+    }
+  };
+
+  const handleSearch = (): void => {
+    const filtered = TempleService.searchTemples(temples, searchTerm);
+    setFilteredTemples(filtered);
+  };
+
+  const handleResetSearch = (): void => {
     setSearchTerm('');
-    setIsSearchActive(false);
-    scrollToTop();
+    setFilteredTemples(temples);
   };
 
-  // Helper functions
   const getRegionName = (regionId: string): string => {
     const region = regions.find(r => r.id === regionId);
     return region?.name || 'Unknown Region';
@@ -150,198 +93,153 @@ export default function TempleScreen() {
 
   const formatTimestamp = (timestamp: any): string => {
     if (!timestamp) return 'N/A';
-    
-    let date: Date;
-    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
-      date = timestamp.toDate();
-    } else if (timestamp instanceof Date) {
-      date = timestamp;
-    } else {
-      return 'Invalid Date';
+    if (timestamp && typeof timestamp.seconds === 'number') {
+      return new Date(timestamp.seconds * 1000).toLocaleDateString();
     }
-    
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    if (timestamp instanceof Date) {
+      return timestamp.toLocaleDateString();
+    }
+    return 'N/A';
   };
 
-  // Render temple item with image
-  const renderTemple = ({ item }: { item: Temple }) => (
-    <View style={styles.card}>
-      {/* Temple Image */}
-      {item.imageUrl && (
-        <View style={styles.imageContainer}>
-          {imageLoadingStates[item.id] && (
-            <View style={styles.imageLoadingOverlay}>
-              <ActivityIndicator size="small" color={colors.churchOrange} />
-            </View>
-          )}
-          
-          {imageErrors[item.id] ? (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={40} color="#ccc" />
-              <Text style={styles.imagePlaceholderText}>Image unavailable</Text>
-            </View>
-          ) : (
-            <Image
-              source={{ uri: item.imageUrl }}
-              style={styles.templeImage}
-              onLoadStart={() => handleImageLoadStart(item.id)}
-              onLoadEnd={() => handleImageLoadEnd(item.id)}
-              onError={() => handleImageError(item.id)}
-              resizeMode="cover"
-            />
-          )}
-        </View>
-      )}
-      
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle}>{item.name}</Text>
-        
-        {item.description && (
-          <Text style={styles.cardText}>{item.description}</Text>
-        )}
-        
-        <Text style={styles.cardText}>
-          <Text style={styles.cardLabel}>🏛️ Region: </Text>
-          {item.regionName || getRegionName(item.regionId)}
-        </Text>
-        
-        <Text style={styles.cardText}>
-          <Text style={styles.cardLabel}>📅 Created: </Text>
-          {formatTimestamp(item.createdAt)}
-        </Text>
-        
-        {item.updatedAt && (
-          <Text style={styles.cardText}>
-            <Text style={styles.cardLabel}>✏️ Updated: </Text>
-            {formatTimestamp(item.updatedAt)}
-          </Text>
-        )}
-      </View>
-    </View>
-  );
+  const scrollToTop = (): void => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+  };
 
-  // Loading state
-  if (loading) {
+  const scrollToBottom = (): void => {
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+  };
+
+  if (loading && temples.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.churchOrange} />
-          <Text style={styles.loadingText}>Loading temples...</Text>
-        </View>
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={colors.churchOrange} />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666' }}>
+          Loading temples...
+        </Text>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Ionicons name="library-outline" size={32} color={colors.churchOrange} />
-        <Text style={styles.headerText}>Temples</Text>
-      </View>
-
-      {/* Search Section */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Ionicons name="search-outline" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search temples by name, description, or region..."
-            placeholderTextColor="#999"
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-            onSubmitEditing={handleSearch}
-            returnKeyType="search"
-          />
-          {searchTerm.length > 0 && (
-            <TouchableOpacity onPress={handleReset} style={styles.clearButton}>
-              <Ionicons name="close-circle" size={20} color="#666" />
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity 
-            style={[
-              styles.searchButton, 
-              searchTerm.trim().length === 0 && styles.disabledButton
-            ]} 
-            onPress={handleSearch}
-            disabled={searchTerm.trim().length === 0}
-          >
-            <Ionicons name="search" size={16} color="white" />
-            <Text style={styles.searchButtonText}>Search</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[
-              styles.resetButton, 
-              searchTerm.length === 0 && styles.disabledButton
-            ]} 
-            onPress={handleReset}
-            disabled={searchTerm.length === 0}
-          >
-            <Ionicons name="refresh" size={16} color={colors.churchOrange} />
-            <Text style={styles.resetButtonText}>Reset</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Results Info */}
-      <View style={styles.resultsInfo}>
-        <Text style={styles.resultsText}>
-          {searchTerm.trim() ? 
-            `Found ${filteredTemples.length} temple${filteredTemples.length !== 1 ? 's' : ''} for "${searchTerm}"` :
-            `Showing all ${temples.length} temples`
-          }
-        </Text>
-        {contentHeight > scrollViewHeight && (
-          <Text style={styles.scrollInfo}>
-            {Math.round((scrollPosition / (contentHeight - scrollViewHeight)) * 100) || 0}% scrolled
-          </Text>
-        )}
-      </View>
-
-      {/* Temples List */}
-      <FlatList
-        ref={flatListRef}
-        data={filteredTemples}
-        keyExtractor={(item) => item.id}
+      <ScrollView 
+        ref={scrollViewRef}
+        contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={true}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        refreshing={refreshing}
-        onRefresh={() => loadData(true)}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="library-outline" size={48} color="#ccc" />
-            <Text style={styles.emptyText}>
-              {searchTerm.trim() ? 
-                'No temples found matching your search' : 
-                'No temples available'
-              }
-            </Text>
-            {searchTerm.trim() && (
-              <TouchableOpacity style={styles.emptyButton} onPress={handleReset}>
-                <Text style={styles.emptyButtonText}>Clear Search</Text>
+      >
+        {/* Header */}
+        <View style={styles.stickyHeader}>
+          <View style={styles.header}>
+            <Ionicons name="library-outline" size={32} color={colors.churchOrange} />
+            <Text style={styles.headerText}>Temples</Text>
+          </View>
+
+          {/* Search */}
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search temples by name, description, or region..."
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              returnKeyType="search"
+              onSubmitEditing={handleSearch}
+            />
+            <View style={styles.searchButtons}>
+              <TouchableOpacity 
+                style={styles.button} 
+                onPress={handleSearch}
+                disabled={loading}
+              >
+                <Text style={styles.buttonText}>Search</Text>
               </TouchableOpacity>
-            )}
+              <TouchableOpacity 
+                style={styles.buttonSecondary} 
+                onPress={handleResetSearch}
+                disabled={loading}
+              >
+                <Text>Reset</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          {/* Status Info */}
+          <View style={styles.headerActions}>
+            <View style={styles.statusContainer}>
+              <Text style={styles.statusText}>Temples: {temples.length}</Text>
+              <Text style={styles.statusText}>Filtered: {filteredTemples.length}</Text>
+              <Text style={styles.statusText}>Regions: {regions.length}</Text>
+            </View>
+          </View>
+
+          {/* Scroll Controls */}
+          <View style={styles.scrollControls}>
+            <TouchableOpacity style={styles.scrollButton} onPress={scrollToTop}>
+              <Text style={styles.scrollButtonText}>↑ Top</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.scrollButton} onPress={scrollToBottom}>
+              <Text style={styles.scrollButtonText}>↓ Bottom</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Error */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity onPress={() => setError(null)} style={styles.errorDismiss}>
+              <Text style={styles.errorDismissText}>Dismiss</Text>
+            </TouchableOpacity>
           </View>
         )}
-        renderItem={renderTemple}
-      />
 
-      {/* Scroll Controls */}
-      {contentHeight > scrollViewHeight && !isAtTop && (
-        <TouchableOpacity style={styles.scrollToTop} onPress={scrollToTop}>
-          <Ionicons name="chevron-up" size={24} color="white" />
-        </TouchableOpacity>
-      )}
+        {/* Temples Grid */}
+        <View style={styles.clubsList}>
+          {filteredTemples.map((temple: Temple) => (
+            <View key={temple.id} style={styles.card}>
+              {temple.imageUrl && (
+                <View style={styles.cardImageContainer}>
+                  <Image 
+                    source={{ uri: temple.imageUrl }} 
+                    style={styles.cardImage}
+                    resizeMode="cover"
+                  />
+                </View>
+              )}
+              
+              <View style={styles.cardContent}>
+                <Text style={styles.cardTitle}>{temple.name}</Text>
+                {temple.description && (
+                  <Text style={styles.cardText}>{temple.description}</Text>
+                )}
+                <Text style={styles.cardText}>
+                  <Text style={styles.cardLabel}>🏛️ Region: </Text>
+                  {temple.regionName || getRegionName(temple.regionId)}
+                </Text>
+                <Text style={styles.cardText}>
+                  <Text style={styles.cardLabel}>📅 Created: </Text>
+                  {formatTimestamp(temple.createdAt)}
+                </Text>
+                {temple.updatedAt && (
+                  <Text style={styles.cardText}>
+                    <Text style={styles.cardLabel}>✏️ Updated: </Text>
+                    {formatTimestamp(temple.updatedAt)}
+                  </Text>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Empty */}
+        {filteredTemples.length === 0 && !loading && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>
+              {searchTerm ? 'No temples match your search.' : 'No temples found.'}
+            </Text>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -351,261 +249,173 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.churchLight,
   },
-  
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  
-  header: {
-    padding: 20,
-    paddingBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.white,
-  },
-  
-  headerText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginLeft: 12,
-    color: colors.churchDark,
-  },
-  
-  searchContainer: {
+  contentContainer: {
+    flexGrow: 1,
     padding: 16,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
-  
-  searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.churchLight,
+  stickyHeader: {
+    backgroundColor: colors.white,
+    marginBottom: 16,
+    padding: 16,
     borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.churchAccent,
-  },
-  
-  searchIcon: {
-    marginRight: 8,
-  },
-  
-  searchInput: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  
-  clearButton: {
-    padding: 4,
-  },
-  
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  
-  searchButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.churchOrange,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    gap: 6,
-  },
-  
-  resetButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.churchOrange,
-    gap: 6,
-  },
-  
-  disabledButton: {
-    opacity: 0.5,
-  },
-  
-  searchButtonText: {
-    color: colors.white,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  
-  resetButtonText: {
-    color: colors.churchOrange,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  
-  resultsInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: colors.churchLight,
-  },
-  
-  resultsText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  
-  scrollInfo: {
-    fontSize: 12,
-    color: '#888',
-  },
-  
-  listContainer: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderTopWidth: 4,
-    borderTopColor: colors.churchOrange,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  
-  imageContainer: {
-    position: 'relative',
-    width: '100%',
-    height: 180,
-    backgroundColor: colors.churchLight,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-    overflow: 'hidden',
-  },
-  
-  templeImage: {
-    width: '100%',
-    height: '100%',
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-  },
-  
-  imageLoadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    justifyContent: 'center',
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 1,
+    marginBottom: 16,
   },
-  
-  imagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.churchLight,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-  },
-  
-  imagePlaceholderText: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#999',
-  },
-  
-  cardContent: {
-    padding: 16,
-  },
-  
-  cardTitle: {
-    fontSize: 18,
+  headerText: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: colors.churchDark,
-    marginBottom: 8,
-  },
-  
-  cardText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 6,
-    lineHeight: 20,
-  },
-  
-  cardLabel: {
-    fontWeight: 'bold',
+    marginLeft: 12,
     color: colors.churchDark,
   },
-  
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
+  searchContainer: {
+    marginBottom: 16,
   },
-  
-  emptyText: {
-    fontSize: 16,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 20,
-    maxWidth: 280,
-  },
-  
-  emptyButton: {
-    backgroundColor: colors.churchOrange,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+  searchInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    backgroundColor: colors.white,
+    fontSize: 16,
   },
-  
-  emptyButtonText: {
+  searchButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  button: {
+    backgroundColor: colors.churchOrange,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  buttonSecondary: {
+    backgroundColor: colors.white,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.churchOrange,
+  },
+  buttonText: {
     color: colors.white,
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 14,
   },
-  
-  scrollToTop: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    backgroundColor: colors.churchOrange,
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  headerActions: {
+    marginBottom: 16,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  statusText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  scrollControls: {
+    flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
+    gap: 8,
+  },
+  scrollButton: {
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  scrollButtonText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  errorContainer: {
+    backgroundColor: '#fee',
+    padding: 16,
+    marginBottom: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fcc',
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 14,
+  },
+  errorDismiss: {
+    marginTop: 8,
+  },
+  errorDismissText: {
+    color: 'red',
+    textDecorationLine: 'underline',
+  },
+  clubsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  card: {
+    width: (width - 48) / 2,
+    backgroundColor: colors.churchLight,
+    borderWidth: 2,
+    borderColor: colors.churchOrange,
+    borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+    marginBottom: 16,
+  },
+  cardImageContainer: {
+    width: '100%',
+    height: 140,
+    backgroundColor: '#f0f0f0',
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    overflow: 'hidden',
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cardContent: {
+    padding: 12,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.churchDark,
+    marginBottom: 6,
+  },
+  cardText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 4,
+    lineHeight: 18,
+  },
+  cardLabel: {
+    fontWeight: '600',
+    color: colors.churchDark,
+  },
+  emptyState: {
+    alignItems: 'center',
+    marginTop: 32,
+    padding: 16,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 16,
+    textAlign: 'center',
   },
 });

@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useHotReload } from '../services/ScrollableService';
-import { SafeAreaView, View, Text, FlatList, TouchableOpacity, ActivityIndicator, Linking, RefreshControl, TextInput } from 'react-native';
+import { SafeAreaView, View, Text, FlatList, TouchableOpacity, ActivityIndicator, Linking, RefreshControl, TextInput, Dimensions } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { getWhatsappGroups } from '../services/WhatsappGroupService';
 import { WhatsappGroup } from '../models/whatsappGroup.model';
-import { sharedStyles, colors } from '../css/sharedStyles';
+
+const { width: screenWidth } = Dimensions.get('window');
+const cardWidth = (screenWidth - 60) / 2; // Account for padding and gap
 
 export default function UserWhatsappGroups() {
   // React Native FlatList ref
@@ -107,38 +109,94 @@ export default function UserWhatsappGroups() {
   const renderEmptyComponent = () => {
     if (searchTerm.trim()) {
       return (
-        <View style={searchStyles.emptyContainer}>
+        <View style={styles.emptyContainer}>
           <Ionicons name="search-outline" size={48} color="#ccc" />
-          <Text style={searchStyles.emptyText}>
+          <Text style={styles.emptyText}>
             No groups found for "{searchTerm}"
           </Text>
-          <TouchableOpacity style={searchStyles.emptyButton} onPress={handleReset}>
-            <Text style={searchStyles.emptyButtonText}>Clear Search</Text>
+          <TouchableOpacity style={styles.emptyButton} onPress={handleReset}>
+            <Text style={styles.emptyButtonText}>Clear Search</Text>
           </TouchableOpacity>
         </View>
       );
     }
     
     return (
-      <Text style={[sharedStyles.cardText, { textAlign: "center", marginTop: 20 }]}>
+      <Text style={[styles.cardDescription, { textAlign: "center", marginTop: 20, color: '#666' }]}>
         No groups available.
       </Text>
     );
   };
 
+  const renderGroupItem = ({ item, index }: { item: WhatsappGroup; index: number }) => (
+    <TouchableOpacity 
+      style={[
+        styles.exploreCard, 
+        { 
+          width: cardWidth, 
+          marginRight: index % 2 === 0 ? 16 : 0,
+          marginBottom: 16 
+        }
+      ]} 
+      onPress={() => openInviteLink(item.inviteLink)}
+    >
+      <View style={[
+        styles.cardGradient, 
+        { 
+          backgroundColor: '#25D366',
+          background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)'
+        }
+      ]}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 255, 255, 0.3)' }]}>
+            <Ionicons name="logo-whatsapp" size={24} color="#FFFFFF" />
+          </View>
+        </View>
+        
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle} numberOfLines={2}>
+            {item.name}
+          </Text>
+          <Text style={styles.cardDescription} numberOfLines={2}>
+            {item.description || "Join this WhatsApp group to connect with members"}
+          </Text>
+        </View>
+        
+        <View style={styles.cardFooter}>
+          <View style={styles.countContainer}>
+            {item.memberCount && (
+              <Text style={styles.countText}>
+                {item.memberCount} members
+              </Text>
+            )}
+          </View>
+          <View style={styles.arrowContainer}>
+            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
-    <SafeAreaView style={sharedStyles.container}>
-      <View style={sharedStyles.header}>
-        <Ionicons name="logo-whatsapp" size={32} color="#25D366" />
-        <Text style={sharedStyles.headerText}>WhatsApp Groups</Text>
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.greeting}>Connect & Share</Text>
+          <Text style={styles.headerTitle}>WhatsApp Groups</Text>
+        </View>
+        <View style={styles.profileContainer}>
+          <Ionicons name="logo-whatsapp" size={32} color="#25D366" />
+        </View>
       </View>
 
       {/* Search Section */}
-      <View style={searchStyles.searchContainer}>
-        <View style={searchStyles.searchInputContainer}>
-          <Ionicons name="search-outline" size={20} color="#666" style={searchStyles.searchIcon} />
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search-outline" size={20} color="#666" style={styles.searchIcon} />
           <TextInput
-            style={searchStyles.searchInput}
+            style={styles.searchInput}
             placeholder="Search groups by name or description..."
             placeholderTextColor="#999"
             value={searchTerm}
@@ -147,71 +205,60 @@ export default function UserWhatsappGroups() {
             returnKeyType="search"
           />
           {searchTerm.length > 0 && (
-            <TouchableOpacity onPress={handleReset} style={searchStyles.clearButton}>
+            <TouchableOpacity onPress={handleReset} style={styles.clearButton}>
               <Ionicons name="close-circle" size={20} color="#666" />
             </TouchableOpacity>
           )}
         </View>
         
-        <View style={searchStyles.buttonContainer}>
+        <View style={styles.buttonContainer}>
           <TouchableOpacity 
-            style={[searchStyles.searchButton, searchTerm.trim().length === 0 && searchStyles.disabledButton]} 
+            style={[styles.searchButton, searchTerm.trim().length === 0 && styles.disabledButton]} 
             onPress={handleSearch}
             disabled={searchTerm.trim().length === 0}
           >
             <Ionicons name="search" size={16} color="white" />
-            <Text style={searchStyles.searchButtonText}>Search</Text>
+            <Text style={styles.searchButtonText}>Search</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[searchStyles.resetButton, searchTerm.length === 0 && searchStyles.disabledButton]} 
+            style={[styles.resetButton, searchTerm.length === 0 && styles.disabledButton]} 
             onPress={handleReset}
             disabled={searchTerm.length === 0}
           >
-            <Ionicons name="refresh" size={16} color="#FF8C42" />
-            <Text style={searchStyles.resetButtonText}>Reset</Text>
+            <Ionicons name="refresh" size={16} color="#FF6B00" />
+            <Text style={styles.resetButtonText}>Reset</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Search Results Info */}
       {searchTerm.trim() && (
-        <View style={searchStyles.resultsInfo}>
-          <Text style={searchStyles.resultsText}>
+        <View style={styles.resultsInfo}>
+          <Text style={styles.resultsText}>
             {filteredGroups.length} group{filteredGroups.length !== 1 ? 's' : ''} found
           </Text>
         </View>
       )}
 
       {loading ? (
-        <ActivityIndicator size="large" color={colors.churchOrange} style={{ marginTop: 20 }} />
+        <View style={styles.loadingStatsContainer}>
+          <ActivityIndicator size="large" color="#FF6B00" />
+          <Text style={styles.loadingText}>Loading WhatsApp groups...</Text>
+        </View>
       ) : (
         <>
           <FlatList
             ref={flatListRef}
             data={filteredGroups}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={sharedStyles.card} onPress={() => openInviteLink(item.inviteLink)}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Ionicons name="logo-whatsapp" size={28} color="#25D366" />
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={sharedStyles.cardTitle}>{item.name}</Text>
-                    <Text style={sharedStyles.cardText}>{item.description}</Text>
-                    {item.memberCount && (
-                      <Text style={[sharedStyles.cardText, { color: "#999", fontSize: 12 }]}>
-                        {item.memberCount} members
-                      </Text>
-                    )}
-                  </View>
-                  <Ionicons name="arrow-forward" size={20} color="#888" />
-                </View>
-              </TouchableOpacity>
-            )}
-            contentContainerStyle={{ paddingBottom: 20 }}
+            renderItem={renderGroupItem}
+            numColumns={2}
+            columnWrapperStyle={styles.exploreGrid}
+            contentContainerStyle={styles.scrollContent}
             ListEmptyComponent={renderEmptyComponent}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.churchOrange]} />
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#FF6B00']} />
             }
             onScroll={handleScroll}
             scrollEventThrottle={16}
@@ -219,7 +266,7 @@ export default function UserWhatsappGroups() {
           
           {/* Scroll to Top Button */}
           {!isAtTop && (
-            <TouchableOpacity style={searchStyles.scrollToTop} onPress={scrollToTop}>
+            <TouchableOpacity style={styles.scrollToTop} onPress={scrollToTop}>
               <Ionicons name="arrow-up" size={24} color="white" />
             </TouchableOpacity>
           )}
@@ -229,29 +276,68 @@ export default function UserWhatsappGroups() {
   );
 }
 
-// Search-specific styles
-const searchStyles = {
-  searchContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#f8f9fa',
+// Updated styles based on shared styles
+const styles = {
+  container: {
+    flex: 1,
+    backgroundColor: '#FDFCFA',
+  },
+  
+  // Header Styles
+  header: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 20,
+    backgroundColor: '#FDFCFA',
     borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderBottomColor: '#FFE4CC',
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  greeting: {
+    fontSize: 14,
+    color: '#FF6B00',
+    fontWeight: '500' as const,
+    marginBottom: 2,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: '#1A1A1A',
+    letterSpacing: 0.3,
+  },
+  profileContainer: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+  },
+
+  // Search Container
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FDFCFA',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFE4CC',
   },
   searchInputContainer: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#FFE4CC',
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     elevation: 2,
   },
   searchIcon: {
@@ -260,7 +346,7 @@ const searchStyles = {
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: '#1A1A1A',
     paddingVertical: 4,
   },
   clearButton: {
@@ -275,7 +361,7 @@ const searchStyles = {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    backgroundColor: '#FF8C42',
+    backgroundColor: '#FF6B00',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -286,9 +372,9 @@ const searchStyles = {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    backgroundColor: 'white',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#FF8C42',
+    borderColor: '#FF6B00',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -298,12 +384,12 @@ const searchStyles = {
     opacity: 0.5,
   },
   searchButtonText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600' as const,
   },
   resetButtonText: {
-    color: '#FF8C42',
+    color: '#FF6B00',
     fontSize: 16,
     fontWeight: '600' as const,
   },
@@ -311,19 +397,106 @@ const searchStyles = {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
     alignItems: 'center' as const,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#FFF9F5',
   },
   resultsText: {
     fontSize: 14,
     color: '#666',
     fontWeight: '500' as const,
   },
-  scrollInfo: {
-    fontSize: 12,
-    color: '#999',
+
+  // Content Styles
+  scrollContent: {
+    padding: 20,
+    paddingBottom: 40,
   },
+
+  // Loading Styles
+  loadingStatsContainer: {
+    alignItems: 'center' as const,
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500' as const,
+  },
+
+  // Explore Grid (for two columns)
+  exploreGrid: {
+    gap: 16,
+  },
+  exploreCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    marginBottom: 8,
+  },
+  cardGradient: {
+    padding: 20,
+    minHeight: 140,
+    justifyContent: 'space-between' as const,
+  },
+  cardHeader: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'flex-start' as const,
+    marginBottom: 16,
+  },
+  iconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  cardContent: {
+    flex: 1,
+  },
+  cardTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700' as const,
+    marginBottom: 4,
+    letterSpacing: 0.3,
+  },
+  cardDescription: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 13,
+    fontWeight: '400' as const,
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  cardFooter: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+  },
+  countContainer: {
+    flex: 1,
+  },
+  countText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  arrowContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+
+  // Empty State
   emptyContainer: {
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
@@ -338,21 +511,23 @@ const searchStyles = {
     marginBottom: 20,
   },
   emptyButton: {
-    backgroundColor: '#FF8C42',
+    backgroundColor: '#FF6B00',
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
   },
   emptyButtonText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600' as const,
   },
+
+  // Scroll to Top Button
   scrollToTop: {
     position: 'absolute' as const,
-    right: 16,
+    right: 20,
     bottom: 20,
-    backgroundColor: '#FF8C42',
+    backgroundColor: '#FF6B00',
     width: 48,
     height: 48,
     borderRadius: 24,

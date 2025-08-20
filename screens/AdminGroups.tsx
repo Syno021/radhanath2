@@ -8,8 +8,11 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  Modal,
+  FlatList,
+  Dimensions,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { Ionicons } from '@expo/vector-icons'; // Added this import
 import { useScrollable, useHotReload, useScrollRestore } from '../services/ScrollableService';
 import {
   getWhatsappGroups,
@@ -21,6 +24,104 @@ import { WhatsappGroup } from '../models/whatsappGroup.model';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebaseCo';
 import { rnPageStyles, colors } from '../css/page'; // Import styles from the CSS file
+
+const { width: screenWidth } = Dimensions.get('window');
+
+// Custom Picker Component
+interface CustomPickerProps {
+  selectedValue: string;
+  onValueChange: (value: string) => void;
+  items: Array<{ label: string; value: string }>;
+  placeholder?: string;
+  style?: any;
+  disabled?: boolean;
+}
+
+const CustomPicker: React.FC<CustomPickerProps> = ({
+  selectedValue,
+  onValueChange,
+  items,
+  placeholder = "Select an option...",
+  style,
+  disabled = false,
+}) => {
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const selectedItem = items.find(item => item.value === selectedValue);
+
+  const handleSelect = (value: string) => {
+    onValueChange(value);
+    setModalVisible(false);
+  };
+
+  return (
+    <>
+      <TouchableOpacity
+        style={[rnPageStyles.customPickerButton, style, disabled && rnPageStyles.customPickerDisabled]}
+        onPress={() => !disabled && setModalVisible(true)}
+        disabled={disabled}
+      >
+        <Text style={[rnPageStyles.customPickerText, !selectedItem && rnPageStyles.customPickerPlaceholder]}>
+          {selectedItem ? selectedItem.label : placeholder}
+        </Text>
+        <Ionicons 
+          name="chevron-down" 
+          size={20} 
+          color={disabled ? colors.border : colors.textSecondary} 
+        />
+      </TouchableOpacity>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={rnPageStyles.customPickerModalOverlay}>
+          <View style={rnPageStyles.customPickerModalContainer}>
+            <View style={rnPageStyles.customPickerModalHeader}>
+              <Text style={rnPageStyles.customPickerModalTitle}>Select Option</Text>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={rnPageStyles.customPickerCloseButton}
+              >
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={items}
+              keyExtractor={(item) => item.value}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    rnPageStyles.customPickerOptionItem,
+                    item.value === selectedValue && rnPageStyles.customPickerSelectedOption
+                  ]}
+                  onPress={() => handleSelect(item.value)}
+                >
+                  <Text style={[
+                    rnPageStyles.customPickerOptionText,
+                    item.value === selectedValue && rnPageStyles.customPickerSelectedText
+                  ]}>
+                    {item.label}
+                  </Text>
+                  {item.value === selectedValue && (
+                    <Ionicons name="checkmark" size={20} color={colors.churchOrange} />
+                  )}
+                </TouchableOpacity>
+              )}
+              showsVerticalScrollIndicator={true}
+              style={rnPageStyles.customPickerOptionsList}
+            />
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+};
+
+// Use styles from rnPageStyles instead of local styles object
 
 // Define default form state
 const defaultFormState: Omit<WhatsappGroup, 'id'> = {
@@ -211,6 +312,22 @@ const AdminGroups: React.FC = () => {
     });
   };
 
+  // Prepare picker items
+  const regionItems = [
+    { label: 'Select Region *', value: '' },
+    ...regions.map(region => ({
+      label: region.name || region.id,
+      value: region.id
+    }))
+  ];
+
+  const groupTypeItems = [
+    { label: 'General', value: 'general' },
+    { label: 'Book Study', value: 'book-study' },
+    { label: 'Events', value: 'events' },
+    { label: 'Seva', value: 'seva' },
+  ];
+
   return (
     <View style={rnPageStyles.container}>
       <ScrollView 
@@ -320,24 +437,13 @@ const AdminGroups: React.FC = () => {
             
             <View style={rnPageStyles.pickerContainer}>
               <Text style={rnPageStyles.label}>Region *</Text>
-              <View style={rnPageStyles.picker}>
-                <Picker
-                  selectedValue={formData.regionId}
-                  onValueChange={(itemValue) =>
-                    setFormData({ ...formData, regionId: itemValue })
-                  }
-                  enabled={!loading}
-                >
-                  <Picker.Item label="Select Region *" value="" />
-                  {regions.map((region) => (
-                    <Picker.Item 
-                      key={region.id} 
-                      label={region.name || region.id} 
-                      value={region.id} 
-                    />
-                  ))}
-                </Picker>
-              </View>
+              <CustomPicker
+                selectedValue={formData.regionId}
+                onValueChange={(value) => setFormData({ ...formData, regionId: value })}
+                items={regionItems}
+                placeholder="Select Region *"
+                disabled={loading}
+              />
             </View>
             
             <TextInput
@@ -353,20 +459,15 @@ const AdminGroups: React.FC = () => {
             
             <View style={rnPageStyles.pickerContainer}>
               <Text style={rnPageStyles.label}>Group Type</Text>
-              <View style={rnPageStyles.picker}>
-                <Picker
-                  selectedValue={formData.groupType}
-                  onValueChange={(itemValue) =>
-                    setFormData({ ...formData, groupType: itemValue as WhatsappGroup['groupType'] })
-                  }
-                  enabled={!loading}
-                >
-                  <Picker.Item label="General" value="general" />
-                  <Picker.Item label="Book Study" value="book-study" />
-                  <Picker.Item label="Events" value="events" />
-                  <Picker.Item label="Seva" value="seva" />
-                </Picker>
-              </View>
+              <CustomPicker
+                selectedValue={formData.groupType}
+                onValueChange={(value) => 
+                  setFormData({ ...formData, groupType: value as WhatsappGroup['groupType'] })
+                }
+                items={groupTypeItems}
+                placeholder="Select Group Type"
+                disabled={loading}
+              />
             </View>
             
             <View style={rnPageStyles.searchButtons}>

@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Platform, StatusBar, useWindowDimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Platform, StatusBar, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ExploreStackParamList } from '../app/navigation/ExploreStack';
+import { collection, onSnapshot, getCountFromServer } from 'firebase/firestore';
+import { db } from '../firebaseCo';
 
 type ExploreNavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'Explore'>;
 
@@ -17,6 +19,18 @@ interface ExploreOption {
   route: string;
   count?: number;
   featured?: boolean;
+  collectionName?: string;
+}
+
+interface FirebaseStats {
+  users: number;
+  books: number;
+  regions: number;
+  temples: number;
+  whatsappGroups: number;
+  readingClubs: number;
+  bookReports: number;
+  loading: boolean;
 }
 
 export default function Explore() {
@@ -24,6 +38,81 @@ export default function Explore() {
   const { width } = useWindowDimensions();
   const isTablet = width > 768;
   const userInitials = 'JD';
+
+  const [stats, setStats] = useState<FirebaseStats>({
+    users: 0,
+    books: 0,
+    regions: 0,
+    temples: 0,
+    whatsappGroups: 0,
+    readingClubs: 0,
+    bookReports: 0,
+    loading: true,
+  });
+
+  // Fetch real-time statistics from Firestore
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const collections = [
+          { name: 'users', key: 'users' },
+          { name: 'books', key: 'books' },
+          { name: 'regions', key: 'regions' },
+          { name: 'temples', key: 'temples' },
+          { name: 'whatsapp-groups', key: 'whatsappGroups' },
+          { name: 'reading-clubs', key: 'readingClubs' },
+          { name: 'bookReports', key: 'bookReports' },
+        ];
+
+        const statsPromises = collections.map(async (col) => {
+          try {
+            const snapshot = await getCountFromServer(collection(db, col.name));
+            return { key: col.key, count: snapshot.data().count };
+          } catch (error) {
+            console.warn(`Error fetching count for ${col.name}:`, error);
+            return { key: col.key, count: 0 };
+          }
+        });
+
+        const results = await Promise.all(statsPromises);
+        
+        const newStats = { ...stats, loading: false };
+        results.forEach(result => {
+          newStats[result.key as keyof FirebaseStats] = result.count;
+        });
+
+        setStats(newStats);
+      } catch (error) {
+        console.error('Error fetching statistics:', error);
+        setStats(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    fetchStats();
+
+    // Set up real-time listeners for collections that change frequently
+    const unsubscribers: (() => void)[] = [];
+
+    // Listen to users collection changes
+    const usersUnsub = onSnapshot(
+      collection(db, 'users'), 
+      () => fetchStats(),
+      (error) => console.warn('Users listener error:', error)
+    );
+    unsubscribers.push(usersUnsub);
+
+    // Listen to book reports collection changes
+    const reportsUnsub = onSnapshot(
+      collection(db, 'bookReports'), 
+      () => fetchStats(),
+      (error) => console.warn('Book reports listener error:', error)
+    );
+    unsubscribers.push(reportsUnsub);
+
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, []);
 
   const exploreOptions: ExploreOption[] = [
     { 
@@ -34,8 +123,9 @@ export default function Explore() {
       color: '#FF6B00', 
       gradient: ['#FF6B00', '#FF8C42'],
       route: 'Book',
-      count: 150,
-      featured: true
+      count: stats.books,
+      featured: true,
+      collectionName: 'books'
     },
     { 
       id: '2',
@@ -45,7 +135,8 @@ export default function Explore() {
       color: '#10B981', 
       gradient: ['#10B981', '#34D399'],
       route: 'Regions',
-      count: 25
+      count: stats.regions,
+      collectionName: 'regions'
     },
     { 
       id: '3',
@@ -55,7 +146,8 @@ export default function Explore() {
       color: '#3B82F6', 
       gradient: ['#3B82F6', '#60A5FA'],
       route: 'Groups',
-      count: 42
+      count: stats.whatsappGroups,
+      collectionName: 'whatsapp-groups'
     },
     { 
       id: '4',
@@ -65,7 +157,8 @@ export default function Explore() {
       color: '#8B5CF6', 
       gradient: ['#8B5CF6', '#A78BFA'],
       route: 'Clubs',
-      count: 18
+      count: stats.readingClubs,
+      collectionName: 'reading-clubs'
     },
     { 
       id: '5',
@@ -75,7 +168,8 @@ export default function Explore() {
       color: '#EC4899', 
       gradient: ['#EC4899', '#F472B6'],
       route: 'Temples',
-      count: 67
+      count: stats.temples,
+      collectionName: 'temples'
     },
   ];
 
@@ -122,7 +216,16 @@ export default function Explore() {
             
             <View style={styles.cardFooter}>
               <View style={styles.countContainer}>
-                <Text style={styles.countText}>{item.count}+ available</Text>
+                {stats.loading ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color="rgba(255, 255, 255, 0.8)" />
+                    <Text style={styles.countText}>Loading...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.countText}>
+                    {item.count || 0}+ available
+                  </Text>
+                )}
               </View>
               <View style={styles.arrowContainer}>
                 <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
@@ -133,6 +236,10 @@ export default function Explore() {
       </TouchableOpacity>
     );
   };
+
+  // Calculate additional stats
+  const totalCommunityItems = stats.books + stats.regions + stats.whatsappGroups + stats.readingClubs + stats.temples;
+  const avgBooksPerUser = stats.users > 0 ? Math.round(stats.bookReports / stats.users) : 0;
 
   return (
     <View style={styles.container}>
@@ -187,23 +294,64 @@ export default function Explore() {
           {exploreOptions.map((item, index) => renderExploreCard(item, index))}
         </View>
 
-        {/* Stats Section */}
+        {/* Enhanced Stats Section */}
         <View style={styles.statsSection}>
-          <Text style={styles.statsTitle}>Community Stats</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>500+</Text>
-              <Text style={styles.statLabel}>Active Members</Text>
+          <Text style={styles.statsTitle}>Live Community Stats</Text>
+          {stats.loading ? (
+            <View style={styles.loadingStatsContainer}>
+              <ActivityIndicator size="large" color="#FF6B00" />
+              <Text style={styles.loadingText}>Loading community statistics...</Text>
             </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>150+</Text>
-              <Text style={styles.statLabel}>Sacred Books</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>25+</Text>
-              <Text style={styles.statLabel}>Regions</Text>
-            </View>
-          </View>
+          ) : (
+            <>
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.users}+</Text>
+                  <Text style={styles.statLabel}>Active Members</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.books}+</Text>
+                  <Text style={styles.statLabel}>Sacred Books</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.regions}+</Text>
+                  <Text style={styles.statLabel}>Regions</Text>
+                </View>
+              </View>
+              
+              {/* Additional Stats Row */}
+              <View style={[styles.statsGrid, { marginTop: 12 }]}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.temples}+</Text>
+                  <Text style={styles.statLabel}>Temples</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.whatsappGroups}+</Text>
+                  <Text style={styles.statLabel}>WhatsApp Groups</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.readingClubs}+</Text>
+                  <Text style={styles.statLabel}>Reading Clubs</Text>
+                </View>
+              </View>
+
+              {/* Engagement Stats */}
+              <View style={[styles.statsGrid, { marginTop: 12 }]}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.bookReports}+</Text>
+                  <Text style={styles.statLabel}>Book Reports</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{totalCommunityItems}+</Text>
+                  <Text style={styles.statLabel}>Total Resources</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{avgBooksPerUser}</Text>
+                  <Text style={styles.statLabel}>Avg Books/User</Text>
+                </View>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Inspirational Quote */}
@@ -435,6 +583,11 @@ const styles = {
     fontSize: 12,
     fontWeight: '500',
   },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   arrowContainer: {
     width: 32,
     height: 32,
@@ -454,6 +607,16 @@ const styles = {
     fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 16,
+  },
+  loadingStatsContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
   statsGrid: {
     flexDirection: 'row',

@@ -12,13 +12,110 @@ import {
   Platform,
   Image,
   Dimensions,
+  Modal,
+  FlatList,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+// Remove the old Picker import
+// import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import TempleService, { Temple, Region, TempleInput } from '../services/TempleService';
 import { rnPageStyles } from '../css/page';
 
 const { width: screenWidth } = Dimensions.get('window');
+
+// Custom Picker Component
+interface CustomPickerProps {
+  selectedValue: string;
+  onValueChange: (value: string) => void;
+  items: Array<{ label: string; value: string }>;
+  placeholder?: string;
+  style?: any;
+  disabled?: boolean;
+}
+
+const CustomPicker: React.FC<CustomPickerProps> = ({
+  selectedValue,
+  onValueChange,
+  items,
+  placeholder = "Select an option...",
+  style,
+  disabled = false,
+}) => {
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const selectedItem = items.find(item => item.value === selectedValue);
+
+  const handleSelect = (value: string) => {
+    onValueChange(value);
+    setModalVisible(false);
+  };
+
+  return (
+    <>
+      <TouchableOpacity
+        style={[styles.pickerButton, style, disabled && styles.pickerDisabled]}
+        onPress={() => !disabled && setModalVisible(true)}
+        disabled={disabled}
+      >
+        <Text style={[styles.pickerText, !selectedItem && styles.placeholderText]}>
+          {selectedItem ? selectedItem.label : placeholder}
+        </Text>
+        <Ionicons 
+          name="chevron-down" 
+          size={20} 
+          color={disabled ? "#ccc" : "#666"} 
+        />
+      </TouchableOpacity>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Region</Text>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={items}
+              keyExtractor={(item) => item.value}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.optionItem,
+                    item.value === selectedValue && styles.selectedOption
+                  ]}
+                  onPress={() => handleSelect(item.value)}
+                >
+                  <Text style={[
+                    styles.optionText,
+                    item.value === selectedValue && styles.selectedOptionText
+                  ]}>
+                    {item.label}
+                  </Text>
+                  {item.value === selectedValue && (
+                    <Ionicons name="checkmark" size={20} color="#0066CC" />
+                  )}
+                </TouchableOpacity>
+              )}
+              showsVerticalScrollIndicator={true}
+              style={styles.optionsList}
+            />
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+};
 
 // Default form state - simplified
 const defaultFormState: TempleInput = {
@@ -89,6 +186,12 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
       console.error(err);
     }
   };
+
+  // Transform regions data for the custom picker
+  const regionPickerItems = regions.map(region => ({
+    label: region.name,
+    value: region.id
+  }));
 
   // Image upload function that converts to data URL
   const handleImageUpload = async (): Promise<void> => {
@@ -416,7 +519,7 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
         {/* Form */}
         {showForm && (
           <View style={rnPageStyles.form}>
-            <Text>
+            <Text >
               {editingTemple ? 'Edit Temple' : 'Add New Temple'}
             </Text>
 
@@ -441,23 +544,15 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
             />
 
             <Text style={rnPageStyles.label}>Region *</Text>
-            <View style={rnPageStyles.pickerContainer}>
-              <Picker
-                selectedValue={formData.regionId}
-                onValueChange={(value: string) => handleInputChange('regionId', value)}
-                style={rnPageStyles.picker}
-                mode="dropdown" // Add this line
-              >
-                <Picker.Item label="Select a region..." value="" />
-                {regions.map((region: Region) => (
-                  <Picker.Item 
-                    key={region.id} 
-                    label={region.name} 
-                    value={region.id} 
-                  />
-                ))}
-              </Picker>
-            </View>
+            {/* REPLACED: Old Picker with CustomPicker */}
+            <CustomPicker
+              selectedValue={formData.regionId}
+              onValueChange={(value: string) => handleInputChange('regionId', value)}
+              items={regionPickerItems}
+              placeholder="Select a region..."
+              style={styles.customPickerStyle}
+              disabled={loading}
+            />
 
             {/* Image Upload Section */}
             <Text style={rnPageStyles.label}>Image</Text>
@@ -630,6 +725,92 @@ const AdminTemples: React.FC<AdminTemplesProps> = () => {
 };
 
 const styles = StyleSheet.create({
+  // Custom Picker Styles
+  pickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: 'white',
+    minHeight: 48,
+    marginBottom: 16,
+  },
+  pickerDisabled: {
+    backgroundColor: '#f5f5f5',
+    opacity: 0.6,
+  },
+  pickerText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+  },
+  placeholderText: {
+    color: '#999',
+  },
+  customPickerStyle: {
+    // Additional styling if needed
+  },
+  
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20, // Handle safe area
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  optionsList: {
+    flex: 1,
+  },
+  optionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#eee',
+  },
+  selectedOption: {
+    backgroundColor: '#f0f8ff',
+  },
+  optionText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+  },
+  selectedOptionText: {
+    color: '#0066CC',
+    fontWeight: '500',
+  },
+
+  // Existing styles from your original code
   scrollControls: {
     flexDirection: 'row',
     justifyContent: 'center',

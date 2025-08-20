@@ -239,4 +239,106 @@ export const rnPageStyles = StyleSheet.create({
     marginTop: 12,
     justifyContent: 'flex-start',
   },
+
+  // CustomPicker Styles
+  customPickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.churchAccent,
+    borderRadius: 6,
+    padding: 12,
+    minHeight: 48,
+  },
+
+  customPickerDisabled: {
+    backgroundColor: colors.churchLight,
+    borderColor: colors.border,
+    opacity: 0.7,
+  },
+
+  customPickerText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+
+  customPickerPlaceholder: {
+    color: '#999',
+  },
+
+  customPickerModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+
+  customPickerModalContainer: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 15,
+  },
+
+  customPickerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.churchLight,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+
+  customPickerModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.churchDark,
+  },
+
+  customPickerCloseButton: {
+    padding: 4,
+    borderRadius: 20,
+    backgroundColor: colors.white,
+  },
+
+  customPickerOptionsList: {
+    maxHeight: 400,
+  },
+
+  customPickerOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.white,
+  },
+
+  customPickerSelectedOption: {
+    backgroundColor: colors.churchLight,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.churchOrange,
+  },
+
+  customPickerOptionText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+
+  customPickerSelectedText: {
+    color: colors.churchDark,
+    fontWeight: '600',
+  },
 });

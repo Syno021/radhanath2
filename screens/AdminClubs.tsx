@@ -6,9 +6,11 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  StyleSheet,
+  Modal,
+  FlatList,
+  Dimensions,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { Ionicons } from '@expo/vector-icons'; // Added this import
 import { useScrollable, useHotReload, useScrollRestore } from '../services/ScrollableService';
 import {
   addReadingClub,
@@ -18,7 +20,103 @@ import {
   getRegions,
 } from '../services/ReadingClubService';
 import { ReadingClub } from '../models/ReadingClub.model';
-import { rnPageStyles } from '../css/page';
+import { rnPageStyles, colors } from '../css/page';
+
+const { width: screenWidth } = Dimensions.get('window');
+
+// Custom Picker Component
+interface CustomPickerProps {
+  selectedValue: string;
+  onValueChange: (value: string) => void;
+  items: Array<{ label: string; value: string }>;
+  placeholder?: string;
+  style?: any;
+  disabled?: boolean;
+}
+
+const CustomPicker: React.FC<CustomPickerProps> = ({
+  selectedValue,
+  onValueChange,
+  items,
+  placeholder = "Select an option...",
+  style,
+  disabled = false,
+}) => {
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const selectedItem = items.find(item => item.value === selectedValue);
+
+  const handleSelect = (value: string) => {
+    onValueChange(value);
+    setModalVisible(false);
+  };
+
+  return (
+    <>
+      <TouchableOpacity
+        style={[rnPageStyles.customPickerButton, style, disabled && rnPageStyles.customPickerDisabled]}
+        onPress={() => !disabled && setModalVisible(true)}
+        disabled={disabled}
+      >
+        <Text style={[rnPageStyles.customPickerText, !selectedItem && rnPageStyles.customPickerPlaceholder]}>
+          {selectedItem ? selectedItem.label : placeholder}
+        </Text>
+        <Ionicons 
+          name="chevron-down" 
+          size={20} 
+          color={disabled ? colors.border : colors.textSecondary} 
+        />
+      </TouchableOpacity>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={rnPageStyles.customPickerModalOverlay}>
+          <View style={rnPageStyles.customPickerModalContainer}>
+            <View style={rnPageStyles.customPickerModalHeader}>
+              <Text style={rnPageStyles.customPickerModalTitle}>Select Option</Text>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={rnPageStyles.customPickerCloseButton}
+              >
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={items}
+              keyExtractor={(item) => item.value}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    rnPageStyles.customPickerOptionItem,
+                    item.value === selectedValue && rnPageStyles.customPickerSelectedOption
+                  ]}
+                  onPress={() => handleSelect(item.value)}
+                >
+                  <Text style={[
+                    rnPageStyles.customPickerOptionText,
+                    item.value === selectedValue && rnPageStyles.customPickerSelectedText
+                  ]}>
+                    {item.label}
+                  </Text>
+                  {item.value === selectedValue && (
+                    <Ionicons name="checkmark" size={20} color={colors.churchOrange} />
+                  )}
+                </TouchableOpacity>
+              )}
+              showsVerticalScrollIndicator={true}
+              style={rnPageStyles.customPickerOptionsList}
+            />
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+};
 
 interface Region {
   id: string;
@@ -198,6 +296,27 @@ const AdminClubs: React.FC = () => {
     setSearchTerm('');
   };
 
+  // Prepare picker items
+  const meetingTypeItems = [
+    { label: 'Online', value: 'online' },
+    { label: 'In-Person', value: 'in-person' },
+    { label: 'Hybrid', value: 'hybrid' },
+  ];
+
+  const frequencyItems = [
+    { label: 'Weekly', value: 'weekly' },
+    { label: 'Biweekly', value: 'biweekly' },
+    { label: 'Monthly', value: 'monthly' },
+  ];
+
+  const regionItems = [
+    { label: 'Select a Region', value: '' },
+    ...regions.map(region => ({
+      label: region.name,
+      value: region.id
+    }))
+  ];
+
   return (
     <ScrollView style={rnPageStyles.container} contentContainerStyle={rnPageStyles.contentContainer}>
       <View style={rnPageStyles.stickyHeader}>
@@ -245,11 +364,16 @@ const AdminClubs: React.FC = () => {
       {/* Form Section */}
       {showForm && (
         <View style={rnPageStyles.form}>
+          <Text style={rnPageStyles.cardTitle}>
+            {editId ? 'Edit Reading Club' : 'Add Reading Club'}
+          </Text>
+          
           <TextInput
             style={rnPageStyles.input}
             placeholder="Club Name"
             value={formData.name}
             onChangeText={(text) => handleChange('name', text)}
+            editable={!loading}
           />
           
           <TextInput
@@ -259,19 +383,18 @@ const AdminClubs: React.FC = () => {
             onChangeText={(text) => handleChange('description', text)}
             multiline
             numberOfLines={3}
+            editable={!loading}
           />
 
           <View style={rnPageStyles.pickerContainer}>
             <Text style={rnPageStyles.label}>Meeting Type</Text>
-            <Picker
+            <CustomPicker
               selectedValue={formData.meetingType}
-              style={rnPageStyles.picker}
               onValueChange={(value) => handleChange('meetingType', value)}
-            >
-              <Picker.Item label="Online" value="online" />
-              <Picker.Item label="In-Person" value="in-person" />
-              <Picker.Item label="Hybrid" value="hybrid" />
-            </Picker>
+              items={meetingTypeItems}
+              placeholder="Select Meeting Type"
+              disabled={loading}
+            />
           </View>
 
           <TextInput
@@ -279,6 +402,7 @@ const AdminClubs: React.FC = () => {
             placeholder="Location Address"
             value={formData.location?.address || ''}
             onChangeText={(text) => handleLocationChange('address', text)}
+            editable={!loading}
           />
           
           <TextInput
@@ -287,6 +411,7 @@ const AdminClubs: React.FC = () => {
             value={formData.location?.latitude?.toString() || '0'}
             onChangeText={(text) => handleLocationChange('latitude', text)}
             keyboardType="numeric"
+            editable={!loading}
           />
           
           <TextInput
@@ -295,13 +420,15 @@ const AdminClubs: React.FC = () => {
             value={formData.location?.longitude?.toString() || '0'}
             onChangeText={(text) => handleLocationChange('longitude', text)}
             keyboardType="numeric"
+            editable={!loading}
           />
 
           <TextInput
             style={rnPageStyles.input}
-            placeholder="Day"
+            placeholder="Day (e.g., Monday)"
             value={formData.schedule.day}
             onChangeText={(text) => handleScheduleChange('day', text)}
+            editable={!loading}
           />
           
           <TextInput
@@ -309,19 +436,18 @@ const AdminClubs: React.FC = () => {
             placeholder="Time (e.g., 14:30)"
             value={formData.schedule.time}
             onChangeText={(text) => handleScheduleChange('time', text)}
+            editable={!loading}
           />
 
           <View style={rnPageStyles.pickerContainer}>
             <Text style={rnPageStyles.label}>Frequency</Text>
-            <Picker
+            <CustomPicker
               selectedValue={formData.schedule.frequency}
-              style={rnPageStyles.picker}
               onValueChange={(value) => handleScheduleChange('frequency', value)}
-            >
-              <Picker.Item label="Weekly" value="weekly" />
-              <Picker.Item label="Biweekly" value="biweekly" />
-              <Picker.Item label="Monthly" value="monthly" />
-            </Picker>
+              items={frequencyItems}
+              placeholder="Select Frequency"
+              disabled={loading}
+            />
           </View>
 
           <TextInput
@@ -329,20 +455,18 @@ const AdminClubs: React.FC = () => {
             placeholder="Current Book"
             value={formData.currentBook || ''}
             onChangeText={(text) => handleChange('currentBook', text)}
+            editable={!loading}
           />
 
           <View style={rnPageStyles.pickerContainer}>
             <Text style={rnPageStyles.label}>Region</Text>
-            <Picker
+            <CustomPicker
               selectedValue={formData.regionId}
-              style={rnPageStyles.picker}
               onValueChange={(value) => handleChange('regionId', value)}
-            >
-              <Picker.Item label="Select a Region" value="" />
-              {regions.map((region) => (
-                <Picker.Item key={region.id} label={region.name} value={region.id} />
-              ))}
-            </Picker>
+              items={regionItems}
+              placeholder="Select a Region"
+              disabled={loading}
+            />
           </View>
 
           <TextInput
@@ -350,6 +474,7 @@ const AdminClubs: React.FC = () => {
             placeholder="Facilitator Name"
             value={formData.facilitator.name}
             onChangeText={(text) => handleFacilitatorChange('name', text)}
+            editable={!loading}
           />
           
           <TextInput
@@ -357,13 +482,32 @@ const AdminClubs: React.FC = () => {
             placeholder="Facilitator Contact"
             value={formData.facilitator.contact}
             onChangeText={(text) => handleFacilitatorChange('contact', text)}
+            editable={!loading}
           />
 
-          <TouchableOpacity style={rnPageStyles.button} onPress={handleSubmit}>
-            <Text style={rnPageStyles.buttonText}>
-              {editId ? 'Update Club' : 'Add Club'}
-            </Text>
-          </TouchableOpacity>
+          <View style={rnPageStyles.searchButtons}>
+            <TouchableOpacity 
+              style={[rnPageStyles.button, loading && rnPageStyles.buttonDisabled]} 
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              <Text style={rnPageStyles.buttonText}>
+                {editId ? 'Update Club' : 'Add Club'}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[rnPageStyles.buttonSecondary, loading && rnPageStyles.buttonDisabled]}
+              onPress={() => {
+                setShowForm(false);
+                setFormData(defaultFormState);
+                setEditId(null);
+              }}
+              disabled={loading}
+            >
+              <Text style={rnPageStyles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 
@@ -397,17 +541,27 @@ const AdminClubs: React.FC = () => {
               <Text style={rnPageStyles.cardLabel}>Facilitator: </Text>
               {club.facilitator.name} ({club.facilitator.contact})
             </Text>
+            <Text style={rnPageStyles.cardText}>
+              <Text style={rnPageStyles.cardLabel}>Region: </Text>
+              {regions.find(r => r.id === club.regionId)?.name || club.regionId}
+            </Text>
+            <Text style={rnPageStyles.cardText}>
+              <Text style={rnPageStyles.cardLabel}>Members: </Text>
+              {club.members?.length || 0}
+            </Text>
             
             <View style={rnPageStyles.cardActions}>
               <TouchableOpacity
-                style={rnPageStyles.buttonSecondary}
+                style={[rnPageStyles.buttonSecondary, loading && rnPageStyles.buttonDisabled]}
                 onPress={() => handleEdit(club)}
+                disabled={loading}
               >
                 <Text style={rnPageStyles.buttonText}>Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={rnPageStyles.buttonDanger}
+                style={[rnPageStyles.buttonDanger, loading && rnPageStyles.buttonDisabled]}
                 onPress={() => handleDelete(club.id)}
+                disabled={loading}
               >
                 <Text style={rnPageStyles.buttonText}>Delete</Text>
               </TouchableOpacity>
@@ -415,6 +569,21 @@ const AdminClubs: React.FC = () => {
           </View>
         ))}
       </View>
+
+      {/* Empty State */}
+      {clubs.length === 0 && !loading && (
+        <View style={{
+          alignItems: 'center',
+          padding: 32,
+          backgroundColor: colors.white,
+          borderRadius: 8,
+          marginTop: 16,
+        }}>
+          <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
+            No reading clubs found. Add your first club to get started!
+          </Text>
+        </View>
+      )}
     </ScrollView>
   );
 };
