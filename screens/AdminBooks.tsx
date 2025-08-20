@@ -36,8 +36,8 @@ interface Book {
 }
 
 interface BookEntry {
-  bookId?: string; // Now stores the book ID instead of just title
-  title: string; // Keep for display and manual entries
+  bookId?: string;
+  title: string;
   quantity: number;
   points: number;
   publisher: string;
@@ -54,14 +54,6 @@ interface MonthlyReport {
   uploadedBy: string;
   uploadedAt: any;
   fileName: string;
-}
-
-interface FileInfo {
-  name: string;
-  uri?: string;
-  file?: File; // For web
-  type?: string;
-  size?: number;
 }
 
 // Searchable Book Dropdown Component
@@ -103,43 +95,28 @@ const SearchableBookDropdown: React.FC<SearchableBookDropdownProps> = ({
   };
 
   const handleManualEntry = () => {
-    onBookSelect(null); // Clear selection to allow manual entry
+    onBookSelect(null);
     setIsDropdownOpen(false);
     setSearchText('');
   };
 
   const renderBookItem = ({ item }: { item: Book }) => (
-    <TouchableOpacity
-      style={styles.dropdownItem}
-      onPress={() => handleBookSelect(item)}
-    >
-      <View style={styles.bookItemContent}>
+    <TouchableOpacity style={styles.dropdownItem} onPress={() => handleBookSelect(item)}>
+      <View>
         <Text style={styles.bookItemTitle}>{item.title}</Text>
-        <Text style={styles.bookItemAuthor}>by {item.author}</Text>
-        {item.category && (
-          <Text style={styles.bookItemCategory}>{item.category}</Text>
-        )}
+        <Text style={styles.bookItemSubtext}>by {item.author}</Text>
+        {item.category && <Text style={styles.bookItemSubtext}>{item.category}</Text>}
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.dropdownContainer}>
-      <TouchableOpacity
-        style={styles.dropdownButton}
-        onPress={() => setIsDropdownOpen(true)}
-      >
-        <Text style={[
-          styles.dropdownButtonText,
-          !selectedBook && styles.dropdownPlaceholder
-        ]}>
+    <View>
+      <TouchableOpacity style={styles.input} onPress={() => setIsDropdownOpen(true)}>
+        <Text style={[styles.inputText, !selectedBook && styles.placeholder]}>
           {selectedBook ? selectedBook.title : placeholder}
         </Text>
-        <Ionicons 
-          name={isDropdownOpen ? "chevron-up" : "chevron-down"} 
-          size={20} 
-          color="#666" 
-        />
+        <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={20} color="#666" />
       </TouchableOpacity>
 
       <Modal
@@ -152,16 +129,13 @@ const SearchableBookDropdown: React.FC<SearchableBookDropdownProps> = ({
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select a Book</Text>
-              <TouchableOpacity
-                onPress={() => setIsDropdownOpen(false)}
-                style={styles.closeButton}
-              >
+              <TouchableOpacity onPress={() => setIsDropdownOpen(false)}>
                 <Ionicons name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
 
             <View style={styles.searchContainer}>
-              <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+              <Ionicons name="search" size={20} color="#666" />
               <TextInput
                 style={styles.searchInput}
                 value={searchText}
@@ -176,15 +150,11 @@ const SearchableBookDropdown: React.FC<SearchableBookDropdownProps> = ({
               renderItem={renderBookItem}
               keyExtractor={(item) => item.id}
               style={styles.booksList}
-              showsVerticalScrollIndicator={true}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>No books found</Text>
                   {allowManualEntry && (
-                    <TouchableOpacity
-                      style={styles.manualEntryButton}
-                      onPress={handleManualEntry}
-                    >
+                    <TouchableOpacity style={styles.manualEntryButton} onPress={handleManualEntry}>
                       <Ionicons name="add-circle-outline" size={20} color="#4CAF50" />
                       <Text style={styles.manualEntryText}>Enter manually</Text>
                     </TouchableOpacity>
@@ -194,10 +164,7 @@ const SearchableBookDropdown: React.FC<SearchableBookDropdownProps> = ({
             />
 
             {allowManualEntry && filteredBooks.length > 0 && (
-              <TouchableOpacity
-                style={styles.manualEntryButton}
-                onPress={handleManualEntry}
-              >
+              <TouchableOpacity style={styles.manualEntryButton} onPress={handleManualEntry}>
                 <Ionicons name="add-circle-outline" size={20} color="#4CAF50" />
                 <Text style={styles.manualEntryText}>Enter book title manually</Text>
               </TouchableOpacity>
@@ -217,7 +184,6 @@ const MONTHS = [
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 10 }, (_, i) => CURRENT_YEAR - 5 + i);
 
-// Template structure for bulk upload
 const TEMPLATE_DATA = [
   {
     bookId: "book123",
@@ -249,12 +215,13 @@ export default function AdminBookLogging() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loadingBooks, setLoadingBooks] = useState(false);
+  const [loadingReports, setLoadingReports] = useState(false);
   const [reports, setReports] = useState<MonthlyReport[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [isManualEntry, setIsManualEntry] = useState(false);
+  const [expandedReports, setExpandedReports] = useState<Record<string, boolean>>({});
   
-  // Form state for manual entry
   const [currentReport, setCurrentReport] = useState<Partial<MonthlyReport>>({
     month: MONTHS[new Date().getMonth()],
     year: CURRENT_YEAR,
@@ -262,7 +229,6 @@ export default function AdminBookLogging() {
     fileName: `Manual Entry - ${new Date().toISOString().split('T')[0]}`
   });
 
-  // Single book entry form
   const [bookEntry, setBookEntry] = useState<BookEntry>({
     title: '',
     quantity: 1,
@@ -276,6 +242,17 @@ export default function AdminBookLogging() {
     fetchBooks();
   }, []);
 
+  useEffect(() => {
+    if (reports && reports.length > 0) {
+      const initial: Record<string, boolean> = {};
+      reports.forEach((r, idx) => {
+        const key = r.id || `${r.month}-${r.year}-${idx}`;
+        initial[key] = false; // collapsed by default, optimized for performance
+      });
+      setExpandedReports(initial);
+    }
+  }, [reports]);
+
   const fetchBooks = async () => {
     setLoadingBooks(true);
     try {
@@ -284,10 +261,7 @@ export default function AdminBookLogging() {
       
       const fetchedBooks: Book[] = [];
       querySnapshot.forEach((doc) => {
-        fetchedBooks.push({
-          id: doc.id,
-          ...doc.data(),
-        } as Book);
+        fetchedBooks.push({ id: doc.id, ...doc.data() } as Book);
       });
 
       setBooks(fetchedBooks);
@@ -299,25 +273,48 @@ export default function AdminBookLogging() {
   };
 
   const fetchReports = async () => {
+    setLoadingReports(true);
     try {
-      const reportsQuery = query(
-        collection(db, 'bookReports'), // Changed from 'monthlyReports' to 'bookReports'
-        orderBy('year', 'desc'),
-        orderBy('month', 'desc')
-      );
-      const querySnapshot = await getDocs(reportsQuery);
+      // First try with ordering, if it fails, try without ordering
+      let querySnapshot;
+      
+      try {
+        const reportsQuery = query(
+          collection(db, 'bookReports'),
+          orderBy('year', 'desc')
+        );
+        querySnapshot = await getDocs(reportsQuery);
+      } catch (orderError) {
+        console.log('Ordering failed, fetching without order:', orderError);
+        // If ordering fails (maybe no index), fetch all documents without ordering
+        querySnapshot = await getDocs(collection(db, 'bookReports'));
+      }
       
       const fetchedReports: MonthlyReport[] = [];
       querySnapshot.forEach((doc) => {
-        fetchedReports.push({
-          id: doc.id,
-          ...doc.data(),
+        const data = doc.data();
+        console.log('Fetched report:', doc.id, data); // Debug log
+        fetchedReports.push({ 
+          id: doc.id, 
+          ...data 
         } as MonthlyReport);
       });
 
+      // Sort manually if we couldn't sort in the query
+      fetchedReports.sort((a, b) => {
+        if (a.year !== b.year) return b.year - a.year;
+        const monthA = MONTHS.indexOf(a.month);
+        const monthB = MONTHS.indexOf(b.month);
+        return monthB - monthA;
+      });
+
+      console.log('Total reports fetched:', fetchedReports.length); // Debug log
       setReports(fetchedReports);
     } catch (error: any) {
+      console.error('Error fetching reports:', error);
       Alert.alert('Error', 'Failed to fetch reports: ' + error.message);
+    } finally {
+      setLoadingReports(false);
     }
   };
 
@@ -329,7 +326,6 @@ export default function AdminBookLogging() {
         ...prev,
         bookId: book.id,
         title: book.title,
-        // Auto-fill publisher if it's a BBT book (you can adjust this logic)
         publisher: book.title.toLowerCase().includes('bhagavad') || 
                    book.title.toLowerCase().includes('bhagavatam') || 
                    book.title.toLowerCase().includes('caitanya') ? 'BBT' : prev.publisher,
@@ -338,14 +334,9 @@ export default function AdminBookLogging() {
                    book.title.toLowerCase().includes('caitanya')
       }));
     } else {
-      // Manual entry mode
       setSelectedBook(null);
       setIsManualEntry(true);
-      setBookEntry(prev => ({
-        ...prev,
-        bookId: undefined,
-        title: ''
-      }));
+      setBookEntry(prev => ({ ...prev, bookId: undefined, title: '' }));
     }
   };
 
@@ -373,7 +364,6 @@ export default function AdminBookLogging() {
       books: [...(prev.books || []), { ...bookEntry }]
     }));
 
-    // Reset book entry form
     setBookEntry({
       title: '',
       quantity: 1,
@@ -419,12 +409,10 @@ export default function AdminBookLogging() {
         fileName: currentReport.fileName!
       };
 
-      // First save to bookReports collection
       await addDoc(collection(db, 'bookReports'), reportData);
 
-      // Then save each book's rating to books-rating collection
       for (const book of currentReport.books) {
-        if (book.bookId) {  // Only save ratings for books from the library
+        if (book.bookId) {
           await addDoc(collection(db, 'books-rating'), {
             bookId: book.bookId,
             title: book.title,
@@ -440,7 +428,6 @@ export default function AdminBookLogging() {
 
       Alert.alert('Success', 'Monthly report submitted successfully 🙏');
       
-      // Reset form
       setCurrentReport({
         month: MONTHS[new Date().getMonth()],
         year: CURRENT_YEAR,
@@ -502,12 +489,10 @@ export default function AdminBookLogging() {
         fileName: fileInfo.name
       };
 
-      // First save to bookReports collection
       await addDoc(collection(db, 'bookReports'), reportData);
 
-      // Then save each book's rating to books-rating collection
       for (const book of books) {
-        if (book.bookId) {  // Only save ratings for books from the library
+        if (book.bookId) {
           await addDoc(collection(db, 'books-rating'), {
             bookId: book.bookId,
             title: book.title,
@@ -522,7 +507,6 @@ export default function AdminBookLogging() {
       }
 
       Alert.alert('Success', `Uploaded report with ${books.length} books successfully 🙏`);
-      
       fetchReports();
 
     } catch (error: any) {
@@ -539,7 +523,6 @@ export default function AdminBookLogging() {
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
     const books: BookEntry[] = [];
 
-    // Find column indices
     const bookIdIndex = headers.findIndex(h => h.includes('bookid') || h.includes('book_id'));
     const titleIndex = headers.findIndex(h => h.includes('title'));
     const quantityIndex = headers.findIndex(h => h.includes('quantity'));
@@ -548,7 +531,7 @@ export default function AdminBookLogging() {
     const isBBTIndex = headers.findIndex(h => h.includes('isbbt') || h.includes('is_bbt'));
 
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, '')); // Remove quotes
+      const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
       
       if (values.length >= Math.max(titleIndex + 1, quantityIndex + 1)) {
         const book: BookEntry = {
@@ -599,11 +582,30 @@ export default function AdminBookLogging() {
 
   const currentReportTotals = calculateReportTotals(currentReport.books || []);
 
+  const toggleReportExpand = (key: string) => {
+    setExpandedReports(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const formatUploadDate = (timestamp: any) => {
+    if (!timestamp) return 'Unknown date';
+    try {
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString();
+    } catch {
+      return 'Unknown date';
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Ionicons name="library-outline" size={32} color="#FF8C42" />
-        <Text style={styles.headerText}>Monthly Book Reports</Text>
+        <View>
+          <Text style={styles.headerText}>BBT Africa Connect</Text>
+          <Text style={styles.headerSubText}>Hare Krishna Book Distribution</Text>
+        </View>
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>Admin</Text>
+        </View>
       </View>
 
       <ScrollView style={styles.content}>
@@ -612,7 +614,7 @@ export default function AdminBookLogging() {
           <Text style={styles.sectionTitle}>Report Period</Text>
           
           <View style={styles.row}>
-            <View style={styles.pickerWrapper}>
+            <View style={styles.flex1}>
               <Text style={styles.label}>Month</Text>
               <View style={styles.pickerContainer}>
                 <Picker
@@ -627,7 +629,7 @@ export default function AdminBookLogging() {
               </View>
             </View>
             
-            <View style={styles.pickerWrapper}>
+            <View style={styles.flex1}>
               <Text style={styles.label}>Year</Text>
               <View style={styles.pickerContainer}>
                 <Picker
@@ -653,7 +655,7 @@ export default function AdminBookLogging() {
             {loadingBooks ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color="#FF8C42" />
-                <Text style={styles.loadingText}>Loading books...</Text>
+                <Text style={styles.text}>Loading books...</Text>
               </View>
             ) : (
               <>
@@ -673,14 +675,14 @@ export default function AdminBookLogging() {
                       placeholder="Enter book title manually"
                     />
                     <TouchableOpacity
-                      style={styles.switchModeButton}
+                      style={styles.switchButton}
                       onPress={() => {
                         setIsManualEntry(false);
                         setBookEntry(prev => ({ ...prev, title: '', bookId: undefined }));
                       }}
                     >
                       <Ionicons name="search" size={16} color="#4CAF50" />
-                      <Text style={styles.switchModeText}>Search from book list instead</Text>
+                      <Text style={styles.switchText}>Search from book list instead</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -689,7 +691,7 @@ export default function AdminBookLogging() {
           </View>
 
           <View style={styles.row}>
-            <View style={styles.inputWrapper}>
+            <View style={styles.flex1}>
               <Text style={styles.label}>Quantity *</Text>
               <TextInput
                 style={styles.input}
@@ -700,7 +702,7 @@ export default function AdminBookLogging() {
               />
             </View>
             
-            <View style={styles.inputWrapper}>
+            <View style={styles.flex1}>
               <Text style={styles.label}>Points per Book *</Text>
               <TextInput
                 style={styles.input}
@@ -722,20 +724,17 @@ export default function AdminBookLogging() {
             />
           </View>
 
-          <View style={styles.checkboxContainer}>
+          <View style={styles.checkboxRow}>
             <TouchableOpacity
               style={[styles.checkbox, bookEntry.isBBTBook && styles.checkboxChecked]}
               onPress={() => setBookEntry(prev => ({ ...prev, isBBTBook: !prev.isBBTBook }))}
             >
               {bookEntry.isBBTBook && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
             </TouchableOpacity>
-            <Text style={styles.checkboxLabel}>This is a BBT Book</Text>
+            <Text style={styles.text}>This is a BBT Book</Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={addBookToReport}
-          >
+          <TouchableOpacity style={styles.primaryButton} onPress={addBookToReport}>
             <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
             <Text style={styles.buttonText}>Add to Report</Text>
           </TouchableOpacity>
@@ -748,29 +747,27 @@ export default function AdminBookLogging() {
               Current Report ({currentReport.books.length} books)
             </Text>
             <View style={styles.totalsContainer}>
-              <Text style={styles.totalText}>Total Books: {currentReportTotals.totalBooks}</Text>
-              <Text style={styles.totalText}>Total Points: {currentReportTotals.totalPoints}</Text>
+              <Text style={styles.text}>Total Books: {currentReportTotals.totalBooks}</Text>
+              <Text style={styles.text}>Total Points: {currentReportTotals.totalPoints}</Text>
             </View>
 
             {currentReport.books.map((book, index) => (
               <View key={index} style={styles.bookItem}>
-                <View style={styles.bookInfo}>
+                <View style={styles.flex1}>
                   <Text style={styles.bookTitle}>
                     {book.title}
-                    {book.bookId && (
-                      <Text style={styles.bookIdIndicator}> 📚</Text>
-                    )}
+                    {book.bookId && <Text style={styles.bookIdBadge}> 📚</Text>}
                   </Text>
                   <Text style={styles.bookDetails}>
                     {book.bookId && <Text>ID: {book.bookId} | </Text>}
-                    Qty: {book.quantity} | Points: {book.points} each | Publisher: {book.publisher}
+                    Qty: {book.quantity} | Points: {book.points} each | {book.publisher}
                   </Text>
                   <Text style={styles.bookType}>
                     {book.isBBTBook ? '🟢 BBT Book' : '🔵 Other Book'} | Total Points: {book.quantity * book.points}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={styles.removeButton}
+                  style={styles.deleteButton}
                   onPress={() => removeBookFromReport(index)}
                 >
                   <Ionicons name="trash-outline" size={20} color="#FF4444" />
@@ -779,7 +776,7 @@ export default function AdminBookLogging() {
             ))}
 
             <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+              style={[styles.primaryButton, loading && styles.buttonDisabled]}
               onPress={handleSubmitReport}
               disabled={loading}
             >
@@ -803,16 +800,13 @@ export default function AdminBookLogging() {
             Include bookId column for books from the library (leave empty for manual entries).
           </Text>
           
-          <TouchableOpacity
-            style={[styles.button, styles.templateButton]}
-            onPress={downloadTemplate}
-          >
+          <TouchableOpacity style={styles.secondaryButton} onPress={downloadTemplate}>
             <Ionicons name="download-outline" size={20} color="#FF6B00" />
-            <Text style={[styles.buttonText, styles.templateButtonText]}>Download Template</Text>
+            <Text style={styles.secondaryButtonText}>Download Template</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
-            style={[styles.button, styles.uploadButton, uploading && styles.buttonDisabled]}
+            style={[styles.primaryButton, uploading && styles.buttonDisabled]}
             onPress={handleFilePicker}
             disabled={uploading}
           >
@@ -827,20 +821,77 @@ export default function AdminBookLogging() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Reports History ({reports.length})</Text>
           
-          {reports.map((report, index) => (
-            <View key={report.id || index} style={styles.reportCard}>
-              <Text style={styles.reportTitle}>
-                {report.month} {report.year}
-              </Text>
-              <Text style={styles.reportStats}>
-                📚 Books: {report.totalBooks} | ⭐ Points: {report.totalPoints}
-              </Text>
-              <Text style={styles.reportFile}>📄 {report.fileName}</Text>
-              <Text style={styles.reportDetails}>
-                {report.books.length} unique titles
-              </Text>
+          {loadingReports ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#FF8C42" />
+              <Text style={styles.text}>Loading reports...</Text>
             </View>
-          ))}
+          ) : reports.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No reports uploaded yet</Text>
+              <TouchableOpacity 
+                style={styles.secondaryButton} 
+                onPress={fetchReports}
+              >
+                <Ionicons name="refresh-outline" size={20} color="#FF6B00" />
+                <Text style={styles.secondaryButtonText}>Refresh</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            reports.map((report, index) => {
+              const reportKey = report.id || `${report.month}-${report.year}-${index}`;
+              const isExpanded = !!expandedReports[reportKey];
+              return (
+                <TouchableOpacity
+                  key={reportKey}
+                  style={styles.reportCard}
+                  onPress={() => toggleReportExpand(reportKey)}
+                >
+                  <View style={styles.reportHeader}>
+                    <Text style={styles.reportTitle}>
+                      {report.month} {report.year}
+                    </Text>
+                    <Ionicons 
+                      name={isExpanded ? 'chevron-up' : 'chevron-down'} 
+                      size={18} 
+                      color="#FF6B00" 
+                    />
+                  </View>
+                  
+                  <Text style={styles.reportStats}>
+                    📚 Books: {report.totalBooks} | ⭐ Points: {report.totalPoints}
+                  </Text>
+                  
+                  <Text style={styles.reportFile}>📄 {report.fileName}</Text>
+                  
+                  <Text style={styles.reportDetails}>
+                    {report.books?.length || 0} unique titles • Uploaded: {formatUploadDate(report.uploadedAt)}
+                  </Text>
+
+                  {isExpanded && (
+                    <View style={styles.expandedContent}>
+                      <Text style={styles.expandedTitle}>Book Details:</Text>
+                      {(report.books || []).map((book, bIndex) => (
+                        <View key={`${reportKey}-${bIndex}`} style={styles.expandedBookItem}>
+                          <Text style={styles.bookTitle}>
+                            {book.title}
+                            {book.bookId && <Text style={styles.bookIdBadge}> 📚</Text>}
+                          </Text>
+                          <Text style={styles.bookDetails}>
+                            {book.bookId && <Text>ID: {book.bookId} | </Text>}
+                            Qty: {book.quantity} | Points: {book.points} each | {book.publisher}
+                          </Text>
+                          <Text style={styles.bookType}>
+                            {book.isBBTBook ? '🟢 BBT Book' : '🔵 Other Book'} | Total Points: {book.quantity * book.points}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -848,16 +899,23 @@ export default function AdminBookLogging() {
 }
 
 const styles = StyleSheet.create({
+  // Base styles
   container: {
     flex: 1,
     backgroundColor: '#FDFCFA',
   },
+  flex1: { flex: 1 },
+  row: { 
+    flexDirection: 'row', 
+    gap: 10 
+  },
+  
+  // Header styles
   header: {
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 20,
     backgroundColor: '#FDFCFA',
-    borderBottomWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -868,6 +926,25 @@ const styles = StyleSheet.create({
     color: '#FF6B00',
     letterSpacing: 0.5,
   },
+  headerSubText: {
+    fontSize: 12,
+    color: '#999',
+    fontWeight: '300',
+    marginTop: 2,
+  },
+  badge: {
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#FF6B00',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  
+  // Content styles
   content: {
     flex: 1,
     padding: 24,
@@ -896,19 +973,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     lineHeight: 20,
   },
-  row: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  pickerWrapper: {
-    flex: 1,
-  },
-  inputWrapper: {
-    flex: 1,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
+  
+  // Form styles
+  inputGroup: { marginBottom: 20 },
   label: {
     fontSize: 16,
     marginBottom: 8,
@@ -921,7 +988,16 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
+  inputText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+  },
+  placeholder: { color: '#999' },
   pickerContainer: {
     borderWidth: 1,
     borderColor: '#E0E0E0',
@@ -929,9 +1005,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     marginBottom: 16,
   },
-  picker: {
-    height: 50,
-  },
+  picker: { height: 50 },
+  
+  // Loading styles
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -941,32 +1017,135 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#F9F9F9',
   },
-  loadingText: {
+  
+  // Checkbox styles
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  checkboxChecked: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  
+  // Button styles
+  primaryButton: {
+    backgroundColor: '#FF6B00',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 8,
+    elevation: 3,
+    shadowColor: '#FF6B00',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  secondaryButton: {
+    backgroundColor: '#FFF4E6',
+    borderWidth: 1,
+    borderColor: '#FF6B00',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  buttonDisabled: { backgroundColor: '#FFB380' },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    marginLeft: 8,
+  },
+  secondaryButtonText: {
+    color: '#FF6B00',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    marginLeft: 8,
+  },
+  deleteButton: {
+    padding: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  switchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    padding: 8,
+  },
+  switchText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#4CAF50',
+  },
+  
+  // Text styles
+  text: {
+    fontSize: 14,
+    color: '#333',
     marginLeft: 10,
-    color: '#666',
   },
-  // Dropdown Styles
-  dropdownContainer: {
-    position: 'relative',
-  },
-  dropdownButton: {
+  
+  // Totals container
+  totalsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    backgroundColor: '#FFF4E6',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFE4CC',
     padding: 12,
-    backgroundColor: '#FFFFFF',
+    marginBottom: 12,
   },
-  dropdownButtonText: {
+  
+  // Book item styles
+  bookItem: {
+    backgroundColor: '#FFF9F5',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#FFE4CC',
+    flexDirection: 'row',
+  },
+  bookTitle: {
     fontSize: 16,
-    color: '#333',
-    flex: 1,
+    color: '#1A1A1A',
+    fontWeight: '500',
+    marginBottom: 4,
   },
-  dropdownPlaceholder: {
-    color: '#999',
+  bookDetails: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
   },
+  bookType: {
+    fontSize: 13,
+    color: '#666',
+  },
+  bookIdBadge: { fontSize: 12 },
+  
+  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -992,9 +1171,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  closeButton: {
-    padding: 4,
-  },
+  
+  // Search styles
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1006,26 +1184,23 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#F9F9F9',
   },
-  searchIcon: {
-    marginRight: 10,
-  },
   searchInput: {
     flex: 1,
     fontSize: 16,
     color: '#333',
+    marginLeft: 10,
   },
   booksList: {
     flex: 1,
     paddingHorizontal: 20,
   },
+  
+  // Dropdown styles
   dropdownItem: {
     paddingVertical: 15,
     paddingHorizontal: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
-  },
-  bookItemContent: {
-    flex: 1,
   },
   bookItemTitle: {
     fontSize: 16,
@@ -1033,16 +1208,13 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 4,
   },
-  bookItemAuthor: {
+  bookItemSubtext: {
     fontSize: 14,
     color: '#666',
     marginBottom: 2,
   },
-  bookItemCategory: {
-    fontSize: 12,
-    color: '#888',
-    fontStyle: 'italic',
-  },
+  
+  // Empty state and manual entry
   emptyContainer: {
     alignItems: 'center',
     padding: 40,
@@ -1069,20 +1241,8 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontWeight: '500',
   },
-  switchModeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    padding: 8,
-  },
-  switchModeText: {
-    marginLeft: 4,
-    fontSize: 14,
-    color: '#4CAF50',
-  },
-  bookIdIndicator: {
-    fontSize: 12,
-  },
+  
+  // Report card styles
   reportCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -1091,11 +1251,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFE4CC',
   },
+  reportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
   reportTitle: {
     fontSize: 16,
     color: '#FF6B00',
     fontWeight: '500',
-    marginBottom: 8,
   },
   reportStats: {
     fontSize: 14,
@@ -1107,69 +1272,28 @@ const styles = StyleSheet.create({
     color: '#999',
     marginBottom: 4,
   },
-  bookItem: {
-    backgroundColor: '#FFF9F5',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#FFE4CC',
-    flexDirection: 'row',
+  reportDetails: {
+    fontSize: 12,
+    color: '#999',
   },
-  bookTitle: {
-    fontSize: 16,
-    color: '#1A1A1A',
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  bookDetails: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
-  },
-  addButton: {
-    backgroundColor: '#FF6B00',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
+  
+  // Expanded content styles
+  expandedContent: {
     marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
   },
-  button: {
-    backgroundColor: '#FF6B00',
-    paddingVertical: 18,
-    borderRadius: 12,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-    elevation: 3,
-    shadowColor: '#FF6B00',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    marginBottom: 12,
-  },
-  buttonDisabled: {
-    backgroundColor: '#FFB380',
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+  expandedTitle: {
+    fontSize: 14,
     fontWeight: '600',
-    letterSpacing: 0.3,
-    marginLeft: 8,
-  },
-  templateButton: {
-    backgroundColor: '#FFF4E6',
-    borderWidth: 1,
-    borderColor: '#FF6B00',
+    color: '#333',
     marginBottom: 12,
   },
-  templateButtonText: {
-    color: '#FF6B00',
-  },
-  uploadButton: {
-    backgroundColor: '#FF6B00',
+  expandedBookItem: {
+    backgroundColor: '#F9F9F9',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
   },
 });
