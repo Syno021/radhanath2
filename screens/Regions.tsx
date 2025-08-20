@@ -266,29 +266,6 @@ export default function AdminBooks() {
         </View>
       </View>
 
-      {/* Stats Section */}
-      <View style={styles.statsSection}>
-        <Text style={styles.statsTitle}>Quick Stats</Text>
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>{regions.length}</Text>
-            <Text style={styles.statLabel}>Total Regions</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>
-              {regions.reduce((sum, region) => sum + (region.numberoftemples ?? 0), 0)}
-            </Text>
-            <Text style={styles.statLabel}>Total Temples</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>
-              {regions.reduce((sum, region) => sum + (region.ReadingClubs?.length ?? 0), 0)}
-            </Text>
-            <Text style={styles.statLabel}>Reading Clubs</Text>
-          </View>
-        </View>
-      </View>
-
       {/* Scroll to Top Button */}
       {!isAtTop && (
         <TouchableOpacity style={styles.scrollToTop} onPress={scrollToTop}>

@@ -143,8 +143,8 @@ export default function UserWhatsappGroups() {
       <View style={[
         styles.cardGradient, 
         { 
-          backgroundColor: '#25D366',
-          background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)'
+          backgroundColor: '#FF6B00',
+          background: 'linear-gradient(135deg, #FF6B00 0%, #d45900ff 100%)'
         }
       ]}>
         <View style={styles.cardHeader}>

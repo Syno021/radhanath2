@@ -19,6 +19,7 @@ export default function ReadingClubsScreen() {
   const [isAtBottom, setIsAtBottom] = useState(false);
   const [contentHeight, setContentHeight] = useState(0);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
+  const [showScrollToTop, setShowScrollToTop] = useState(false);
   
   // Scroll functions for React Native
   const scrollToTop = () => {
@@ -43,6 +44,7 @@ export default function ReadingClubsScreen() {
     setIsAtBottom(
       currentScrollPosition > contentSize.height - layoutMeasurement.height - threshold
     );
+    setShowScrollToTop(currentScrollPosition > 300);
   };
 
   const [clubs, setClubs] = useState<ReadingClub[]>([]);
@@ -111,83 +113,92 @@ export default function ReadingClubsScreen() {
     }
   };
 
-  // Render card item
+  // Get card color based on index
+  const getCardColor = (index: number): string => {
+    const colors = [
+      '#FF6B00', // Orange
+    ];
+    return colors[index % colors.length];
+  };
+
+  // Render card item using enhanced grid card styles
   const renderClubCard = ({ item, index }: { item: ReadingClub, index: number }) => (
-    <View style={[
-      enhancedStyles.clubCard, 
-      { marginLeft: index % 2 === 0 ? 20 : 10, marginRight: index % 2 === 0 ? 10 : 20 }
-    ]}>
-      <View style={enhancedStyles.cardHeader}>
-        <View style={enhancedStyles.iconContainer}>
-          <Ionicons name="book-outline" size={24} color="#FF6B00" />
-        </View>
-        <View style={enhancedStyles.membersInfo}>
-          <Text style={enhancedStyles.memberCount}>
-            {item.members?.length || 0} members
-          </Text>
-        </View>
-      </View>
-      
-      <View style={enhancedStyles.cardContent}>
-        <Text style={enhancedStyles.cardTitle} numberOfLines={2}>
-          {item.name}
-        </Text>
-        <Text style={enhancedStyles.cardDescription} numberOfLines={3}>
-          {item.description}
-        </Text>
-        
-        <View style={enhancedStyles.scheduleInfo}>
-          <Ionicons name="calendar-outline" size={14} color="#666" />
-          <Text style={enhancedStyles.scheduleText}>
-            {item.schedule.day} at {item.schedule.time}
-          </Text>
+    <TouchableOpacity style={styles.exploreCard} activeOpacity={0.8}>
+      <View style={[styles.cardGradient, { backgroundColor: getCardColor(index) }]}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
+            <Ionicons name="book-outline" size={24} color="#FFFFFF" />
+          </View>
+          {index === 0 && (
+            <View style={styles.featuredBadge}>
+              <Text style={styles.featuredText}>Featured</Text>
+            </View>
+          )}
         </View>
         
-        {item.currentBook && (
-          <View style={enhancedStyles.bookInfo}>
-            <Ionicons name="bookmark-outline" size={14} color="#666" />
-            <Text style={enhancedStyles.bookText} numberOfLines={2}>
-              {item.currentBook}
+        <View style={styles.cardContent}>
+          <Text style={[styles.cardTitle, index === 0 && styles.featuredTitle]} numberOfLines={2}>
+            {item.name}
+          </Text>
+          <Text style={[styles.cardDescription, index === 0 && styles.featuredDescription]} numberOfLines={3}>
+            {item.description}
+          </Text>
+          
+          {item.currentBook && (
+            <View style={styles.bookInfoSection}>
+              <Ionicons name="bookmark-outline" size={14} color="rgba(255, 255, 255, 0.8)" />
+              <Text style={styles.bookInfoText} numberOfLines={1}>
+                {item.currentBook}
+              </Text>
+            </View>
+          )}
+        </View>
+        
+        <TouchableOpacity 
+          style={styles.cardFooterButton} 
+          onPress={() => handleRequestToJoin(item.id, item.joinRequests, item.members)}
+        >
+          <View style={styles.countContainer}>
+            <Text style={styles.countText}>
+              {item.members?.length || 0} members • {item.schedule.day}
             </Text>
           </View>
-        )}
+          <View style={styles.arrowContainer}>
+            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
       </View>
-      
-      <TouchableOpacity 
-        style={enhancedStyles.joinButton} 
-        onPress={() => handleRequestToJoin(item.id, item.joinRequests, item.members)}
-      >
-        <Text style={enhancedStyles.joinButtonText}>Request to Join</Text>
-        <Ionicons name="arrow-forward" size={16} color="white" />
-      </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 
   if (loading) {
     return (
-      <SafeAreaView style={enhancedStyles.container}>
-        <View style={enhancedStyles.loadingContainer}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FF6B00" />
-          <Text style={enhancedStyles.loadingText}>Loading reading clubs...</Text>
+          <Text style={styles.loadingText}>Loading reading clubs...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={enhancedStyles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={enhancedStyles.header}>
-        <View style={enhancedStyles.headerLeft}>
-          <Text style={enhancedStyles.greeting}>Discover</Text>
-          <Text style={enhancedStyles.headerTitle}>Reading Clubs</Text>
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.greeting}>Discover</Text>
+          <Text style={styles.headerTitle}>Reading Clubs</Text>
         </View>
-        <View style={enhancedStyles.profileContainer}>
-          <TouchableOpacity style={enhancedStyles.notificationButton}>
-            <Ionicons name="notifications-outline" size={20} color="#666" />
-          </TouchableOpacity>
-          <TouchableOpacity style={enhancedStyles.profileButton}>
-            <Text style={enhancedStyles.userInitials}>
+        <View style={styles.profileContainer}>
+          <View style={styles.notificationBadge}>
+            <TouchableOpacity style={styles.notificationButton}>
+              <Ionicons name="notifications-outline" size={20} color="#666" />
+            </TouchableOpacity>
+            <View style={styles.notificationDot} />
+          </View>
+          <TouchableOpacity style={styles.profileButton}>
+            <Text style={styles.userInitials}>
               {auth.currentUser?.email?.charAt(0).toUpperCase() || 'U'}
             </Text>
           </TouchableOpacity>
@@ -195,11 +206,11 @@ export default function ReadingClubsScreen() {
       </View>
 
       {/* Search Section */}
-      <View style={enhancedStyles.quickActionsContainer}>
-        <View style={enhancedStyles.searchInputContainer}>
-          <Ionicons name="search-outline" size={20} color="#666" style={enhancedStyles.searchIcon} />
+      <View style={styles.quickActionsContainer}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search-outline" size={20} color="#666" style={styles.searchIcon} />
           <TextInput
-            style={enhancedStyles.searchInput}
+            style={styles.searchInput}
             placeholder="Search clubs by name, description, book..."
             placeholderTextColor="#999"
             value={searchTerm}
@@ -208,40 +219,48 @@ export default function ReadingClubsScreen() {
             returnKeyType="search"
           />
           {searchTerm.length > 0 && (
-            <TouchableOpacity onPress={handleReset} style={enhancedStyles.clearButton}>
+            <TouchableOpacity onPress={handleReset} style={styles.clearButton}>
               <Ionicons name="close-circle" size={20} color="#666" />
             </TouchableOpacity>
           )}
         </View>
         
-        <View style={enhancedStyles.buttonContainer}>
+        <View style={styles.buttonContainer}>
           <TouchableOpacity 
-            style={[enhancedStyles.searchButton, searchTerm.trim().length === 0 && enhancedStyles.disabledButton]} 
+            style={[styles.searchButton, searchTerm.trim().length === 0 && styles.disabledButton]} 
             onPress={handleSearch}
             disabled={searchTerm.trim().length === 0}
           >
             <Ionicons name="search" size={16} color="white" />
-            <Text style={enhancedStyles.searchButtonText}>Search</Text>
+            <Text style={styles.searchButtonText}>Search</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[enhancedStyles.resetButton, searchTerm.length === 0 && enhancedStyles.disabledButton]} 
+            style={[styles.resetButton, searchTerm.length === 0 && styles.disabledButton]} 
             onPress={handleReset}
             disabled={searchTerm.length === 0}
           >
             <Ionicons name="refresh" size={16} color="#FF6B00" />
-            <Text style={enhancedStyles.resetButtonText}>Reset</Text>
+            <Text style={styles.resetButtonText}>Reset</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Results Info */}
-      <View style={enhancedStyles.resultsInfo}>
-        <Text style={enhancedStyles.resultsText}>
+      <View style={styles.resultsInfo}>
+        <Text style={styles.resultsText}>
           {searchTerm.trim() ? 
             `Found ${filteredClubs.length} club${filteredClubs.length !== 1 ? 's' : ''} for "${searchTerm}"` :
             `Showing all ${clubs.length} reading clubs`
           }
+        </Text>
+      </View>
+
+      {/* Section Header */}
+      <View style={styles.sectionHeaderContainer}>
+        <Text style={styles.sectionTitle}>Explore Reading Clubs</Text>
+        <Text style={styles.sectionSubtitle}>
+          Join a community of readers and discover your next favorite book together.
         </Text>
       </View>
 
@@ -251,22 +270,23 @@ export default function ReadingClubsScreen() {
         data={filteredClubs}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        showsVerticalScrollIndicator={true}
+        showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
-        contentContainerStyle={enhancedStyles.scrollContent}
+        contentContainerStyle={styles.scrollContent}
+        columnWrapperStyle={styles.exploreGrid}
         ListEmptyComponent={() => (
-          <View style={enhancedStyles.emptyContainer}>
-            <Ionicons name="book-outline" size={64} color="#ddd" />
-            <Text style={enhancedStyles.emptyText}>
+          <View style={styles.emptyContainer}>
+            <Ionicons name="book-outline" size={48} color="#FF6B00" />
+            <Text style={styles.emptyText}>
               {searchTerm.trim() ? 
                 'No clubs found matching your search' : 
                 'No reading clubs available'
               }
             </Text>
             {searchTerm.trim() && (
-              <TouchableOpacity style={enhancedStyles.emptyButton} onPress={handleReset}>
-                <Text style={enhancedStyles.emptyButtonText}>Clear Search</Text>
+              <TouchableOpacity style={styles.emptyButton} onPress={handleReset}>
+                <Text style={styles.emptyButtonText}>Clear Search</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -275,9 +295,9 @@ export default function ReadingClubsScreen() {
       />
 
       {/* Scroll to Top Button */}
-      {contentHeight > scrollViewHeight && !isAtTop && (
-        <TouchableOpacity style={enhancedStyles.scrollToTop} onPress={scrollToTop}>
-          <Ionicons name="chevron-up" size={24} color="white" />
+      {showScrollToTop && (
+        <TouchableOpacity style={styles.scrollToTop} onPress={scrollToTop}>
+          <Ionicons name="arrow-up" size={24} color="white" />
         </TouchableOpacity>
       )}
     </SafeAreaView>
@@ -285,7 +305,7 @@ export default function ReadingClubsScreen() {
 }
 
 // Enhanced styles based on the first document
-const enhancedStyles = {
+const styles = {
   container: {
     flex: 1,
     backgroundColor: '#FDFCFA',
@@ -323,6 +343,9 @@ const enhancedStyles = {
     alignItems: 'center' as const,
     gap: 12,
   },
+  notificationBadge: {
+    position: 'relative' as const,
+  },
   notificationButton: {
     width: 40,
     height: 40,
@@ -330,6 +353,15 @@ const enhancedStyles = {
     backgroundColor: '#F5F5F5',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
+  },
+  notificationDot: {
+    position: 'absolute' as const,
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF4757',
   },
   profileButton: {
     width: 40,
@@ -380,7 +412,7 @@ const enhancedStyles = {
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: '#1A1A1A',
     paddingVertical: 4,
   },
   clearButton: {
@@ -439,107 +471,136 @@ const enhancedStyles = {
   },
   resultsText: {
     fontSize: 14,
-    color: '#666',
+    color: '#1A1A1A',
     fontWeight: '500' as const,
+  },
+
+  // Section Header
+  sectionHeaderContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#1A1A1A',
+    fontWeight: '400' as const,
+    lineHeight: 20,
   },
 
   // Content Styles
   scrollContent: {
+    paddingHorizontal: 20,
     paddingBottom: 40,
   },
 
-  // Club Card Styles
-  clubCard: {
-    width: (screenWidth - 60) / 2,
-    backgroundColor: '#FDFCFA', // Same as page background
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#FF6B00', // Primary color border
-    padding: 16,
+  // Explore Grid
+  exploreGrid: {
+    justifyContent: 'space-between' as const,
     marginBottom: 16,
+  },
+  exploreCard: {
+    width: (screenWidth - 60) / 2,
+    borderRadius: 16,
+    overflow: 'hidden' as const,
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 12,
+    marginBottom: 8,
   },
-  
+  cardGradient: {
+    padding: 20,
+    minHeight: 200, // Increased height for more content
+    justifyContent: 'space-between' as const,
+  },
   cardHeader: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
-    alignItems: 'center' as const,
-    marginBottom: 12,
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFF5F0',
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  membersInfo: {
-    alignItems: 'flex-end' as const,
-  },
-  memberCount: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500' as const,
-  },
-  
-  cardContent: {
-    flex: 1,
+    alignItems: 'flex-start' as const,
     marginBottom: 16,
   },
+  iconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  featuredBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  featuredText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700' as const,
+    textTransform: 'uppercase' as const,
+  },
+  cardContent: {
+    flex: 1,
+  },
   cardTitle: {
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '700' as const,
-    color: '#1A1A1A',
-    marginBottom: 8,
+    marginBottom: 4,
     letterSpacing: 0.3,
   },
+  featuredTitle: {
+    fontSize: 22,
+  },
   cardDescription: {
-    fontSize: 14,
-    color: '#666',
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 13,
     fontWeight: '400' as const,
-    lineHeight: 20,
+    lineHeight: 18,
     marginBottom: 12,
   },
-  scheduleInfo: {
+  featuredDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  bookInfoSection: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  scheduleText: {
+  bookInfoText: {
+    color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 12,
-    color: '#666',
-    marginLeft: 6,
-  },
-  bookInfo: {
-    flexDirection: 'row' as const,
-    alignItems: 'flex-start' as const,
-  },
-  bookText: {
-    fontSize: 12,
-    color: '#666',
+    fontWeight: '500' as const,
     marginLeft: 6,
     flex: 1,
   },
-  
-  joinButton: {
+  cardFooterButton: {
     flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+  },
+  countContainer: {
+    flex: 1,
+  },
+  countText: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  arrowContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center' as const,
     justifyContent: 'center' as const,
-    backgroundColor: '#FF6B00',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    gap: 6,
-  },
-  joinButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600' as const,
   },
 
   // Loading States
@@ -552,7 +613,7 @@ const enhancedStyles = {
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#666',
+    color: '#1A1A1A',
     fontWeight: '500' as const,
   },
 
@@ -562,11 +623,11 @@ const enhancedStyles = {
     justifyContent: 'center' as const,
     paddingVertical: 60,
     paddingHorizontal: 20,
-    width: screenWidth,
+    width: screenWidth - 40,
   },
   emptyText: {
     fontSize: 16,
-    color: '#666',
+    color: '#1A1A1A',
     textAlign: 'center' as const,
     marginTop: 16,
     marginBottom: 20,
@@ -581,6 +642,49 @@ const enhancedStyles = {
     color: 'white',
     fontSize: 14,
     fontWeight: '600' as const,
+  },
+
+  // Stats Section
+  statsSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FDFCFA',
+    borderTopWidth: 1,
+    borderTopColor: '#E8F5E8',
+  },
+  statsTitle: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#1A1A1A',
+    marginBottom: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row' as const,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center' as const,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: '#FF6B00',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#1A1A1A',
+    fontWeight: '500' as const,
+    textAlign: 'center' as const,
   },
 
   // Scroll to Top Button
