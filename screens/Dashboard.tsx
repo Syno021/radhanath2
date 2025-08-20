@@ -32,12 +32,13 @@ export default function Dashboard() {
   const fetchStats = async () => {
     try {
       // Basic stats queries
-      const [users, clubs, books, regions, groups] = await Promise.all([
+      const [users, clubs, booksLibrary, regions, groups, bookReports] = await Promise.all([
         getDocs(collection(db, "users")),
         getDocs(collection(db, "readingClubs")),
-        getDocs(collection(db, "uploadedBooks")),
+        getDocs(collection(db, "books")),
         getDocs(collection(db, "regions")),
         getDocs(collection(db, "whatsappGroups")),
+        getDocs(collection(db, "bookReports")),
       ]);
 
       // Calculate advanced stats
@@ -50,9 +51,10 @@ export default function Dashboard() {
       );
       const activeUsersSnapshot = await getDocs(activeUsersQuery);
 
+      // Books added to library this month (based on createdAt from AdminAddBooks)
       const booksThisMonthQuery = query(
-        collection(db, "uploadedBooks"),
-        where("uploadedAt", ">=", firstDayOfMonth)
+        collection(db, "books"),
+        where("createdAt", ">=", firstDayOfMonth)
       );
       const booksThisMonthSnapshot = await getDocs(booksThisMonthQuery);
 
@@ -62,26 +64,67 @@ export default function Dashboard() {
         0
       );
 
-      const totalBookPoints = books.docs.reduce(
-        (sum, book) => sum + (book.data().points || 0),
-        0
+      // Aggregate from bookReports for points and total books
+      const reportsTotals = bookReports.docs.reduce(
+        (acc, docSnap) => {
+          const data = docSnap.data() as any;
+          return {
+            totalBooks: acc.totalBooks + (data.totalBooks || 0),
+            totalPoints: acc.totalPoints + (data.totalPoints || 0),
+          };
+        },
+        { totalBooks: 0, totalPoints: 0 }
       );
+
+      // Determine active clubs as those with at least one member
+      const activeClubsCount = clubs.docs.filter(
+        (doc) => (doc.data().members?.length || 0) > 0
+      ).length;
+
+      // Determine top region by number of WhatsApp groups
+      let topRegionName = "N/A";
+      if (groups.docs.length > 0) {
+        const regionCount: Record<string, number> = {};
+        groups.docs.forEach((g) => {
+          const rid = (g.data() as any).regionId;
+          if (rid) {
+            regionCount[rid] = (regionCount[rid] || 0) + 1;
+          }
+        });
+
+        let topRegionId: string | null = null;
+        let maxCount = -1;
+        Object.entries(regionCount).forEach(([rid, count]) => {
+          if (count > maxCount) {
+            maxCount = count;
+            topRegionId = rid;
+          }
+        });
+
+        if (topRegionId) {
+          const topRegionDoc = regions.docs.find((r) => r.id === topRegionId);
+          topRegionName = topRegionDoc?.data().name || topRegionId;
+        } else if (regions.docs.length > 0) {
+          topRegionName = regions.docs[0].data().name || "N/A";
+        }
+      } else if (regions.docs.length > 0) {
+        topRegionName = regions.docs[0].data().name || "N/A";
+      }
 
       setStats({
         // Basic stats
         totalUsers: users.size,
         totalClubs: clubs.size,
-        totalBooks: books.size,
+        totalBooks: booksLibrary.size,
         totalRegions: regions.size,
         totalGroups: groups.size,
         // Advanced stats
         activeUsers: activeUsersSnapshot.size,
         booksThisMonth: booksThisMonthSnapshot.size,
-        avgBooksPerClub: clubs.size ? Math.round(books.size / clubs.size) : 0,
-        totalBookPoints: totalBookPoints,
-        activeClubs: clubs.docs.filter((doc) => doc.data().isActive).length,
-        topRegion:
-          regions.docs.length > 0 ? regions.docs[0].data().name : "N/A",
+        avgBooksPerClub: clubs.size ? Math.round(reportsTotals.totalBooks / clubs.size) : 0,
+        totalBookPoints: reportsTotals.totalPoints,
+        activeClubs: activeClubsCount,
+        topRegion: topRegionName,
         totalMembers,
         avgMembersPerClub:
           clubs.size ? Math.round(totalMembers / clubs.size) : 0,

@@ -7,11 +7,12 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  StyleSheet,
 } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
 import { useHotReload } from '../services/ScrollableService';
 import { Region } from '../models/region.model';
 import { addRegion, getRegions, updateRegion, deleteRegion } from '../services/regionService';
-import { rnPageStyles } from '../css/page'; // Import styles from the CSS file
 
 const defaultFormState: Omit<Region, 'id'> = {
   name: '',
@@ -23,14 +24,13 @@ const defaultFormState: Omit<Region, 'id'> = {
 };
 
 const AdminRegions: React.FC = () => {
-  // Use a proper React Native ScrollView ref
   const scrollViewRef = useRef<ScrollView>(null);
-    
+
   const [formData, setFormData] = useHotReload(
     'admin_regions_form',
     defaultFormState
   );
-    
+
   const [editId, setEditId] = useHotReload(
     'admin_regions_edit_id',
     null as string | null
@@ -59,7 +59,6 @@ const AdminRegions: React.FC = () => {
     }
   };
 
-  // 🔍 Search function - updated to search by reading club count instead of IDs
   const handleSearch = () => {
     if (!searchTerm.trim()) {
       setFilteredRegions(regions);
@@ -68,13 +67,11 @@ const AdminRegions: React.FC = () => {
     const filtered = regions.filter((region) =>
       region.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       region.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      // You can still search by reading club count if needed
       (region.ReadingClubs?.length || 0).toString().includes(searchTerm)
     );
     setFilteredRegions(filtered);
   };
 
-  // ♻️ Reset search
   const handleResetSearch = () => {
     setSearchTerm('');
     setFilteredRegions(regions);
@@ -156,230 +153,240 @@ const AdminRegions: React.FC = () => {
   const resetForm = () => {
     setFormData(defaultFormState);
     setEditingRegion(null);
+    setEditId(null);
   };
 
   const handleFormToggle = () => {
     setShowForm((prev) => !prev);
-    if (!showForm) resetForm();
+    if (showForm) resetForm();
   };
 
-  // Helper function to get reading club count
   const getReadingClubCount = (region: Region): number => {
     return region.ReadingClubs?.length || 0;
   };
 
-  // Scroll helper functions for React Native
-  const scrollToTop = () => {
-    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-  };
-
-  const scrollToBottom = () => {
-    scrollViewRef.current?.scrollToEnd({ animated: true });
-  };
-
   if (loading && regions.length === 0) {
     return (
-      <View style={[rnPageStyles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={rnPageStyles.button.backgroundColor} />
-        <Text style={[{ marginTop: 16 }, rnPageStyles.textSecondary]}>
-          Loading regions...
-        </Text>
+      <View style={styles.loadingState}>
+        <ActivityIndicator size="large" color="#FF6B00" />
+        <Text style={styles.loadingText}>Loading regions...</Text>
       </View>
     );
   }
 
   return (
-    <View style={rnPageStyles.container}>
-      <ScrollView 
-        ref={scrollViewRef}
-        contentContainerStyle={rnPageStyles.contentContainer}
-        showsVerticalScrollIndicator={true}
-      >
-        {/* Sticky Header */}
-        <View style={rnPageStyles.stickyHeader}>
-          <Text style={rnPageStyles.header}>Admin Regions</Text>
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>Regions</Text>
+          <Text style={styles.headerSubtitle}>BBT Africa Connect - Admin</Text>
+        </View>
+        <View style={styles.headerIcon}>
+          <Ionicons name="map-outline" size={24} color="#FF6B00" />
+        </View>
+      </View>
 
-          {/* 🔍 Search Bar */}
-          <View style={rnPageStyles.searchContainer}>
-            <TextInput
-              style={rnPageStyles.searchInput}
-              placeholder="Search regions by name, description, or reading club count..."
-              value={searchTerm}
-              onChangeText={setSearchTerm}
-              returnKeyType="search"
-              onSubmitEditing={handleSearch}
-            />
-            <View style={rnPageStyles.searchButtons}>
-              <TouchableOpacity 
-                style={rnPageStyles.button} 
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
+        {/* Search Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Search Regions</Text>
+          <View style={styles.searchContainer}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+              <TextInput
+                placeholder="Search regions..."
+                placeholderTextColor="#999"
+                style={styles.searchInput}
+                value={searchTerm}
+                onChangeText={setSearchTerm}
+                editable={!loading}
+              />
+            </View>
+
+            <View style={styles.searchButtons}>
+              <TouchableOpacity
+                style={[styles.primaryButton, loading && styles.buttonDisabled]}
                 onPress={handleSearch}
                 disabled={loading}
               >
-                <Text style={rnPageStyles.buttonText}>Search</Text>
+                <Ionicons name="search" size={16} color="#FFFFFF" />
+                <Text style={styles.buttonText}>Search</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={rnPageStyles.buttonSecondary} 
+              <TouchableOpacity
+                style={[styles.secondaryButton, loading && styles.buttonDisabled]}
                 onPress={handleResetSearch}
                 disabled={loading}
               >
-                <Text style={rnPageStyles.buttonText}>Reset</Text>
+                <Ionicons name="refresh" size={16} color="#FF6B00" />
+                <Text style={styles.secondaryButtonText}>Reset</Text>
               </TouchableOpacity>
             </View>
           </View>
-          
-          <View style={rnPageStyles.headerActions}>
-            <TouchableOpacity 
-              style={[rnPageStyles.button, loading && rnPageStyles.buttonDisabled]} 
-              onPress={handleFormToggle}
-              disabled={loading}
-            >
-              <Text style={rnPageStyles.buttonText}>
-                {showForm ? 'Close Form' : 'Add Region'}
-              </Text>
-            </TouchableOpacity>
-            
-            <View style={rnPageStyles.statusContainer}>
-              <Text style={rnPageStyles.statusText}>
-                Regions: {regions.length}
-              </Text>
-              <Text style={rnPageStyles.statusText}>
-                Filtered: {filteredRegions.length}
-              </Text>
+
+          <View style={styles.statsContainer}>
+            <View style={styles.statBadge}>
+              <Text style={styles.statValue}>{regions.length}</Text>
+              <Text style={styles.statLabel}>Total Regions</Text>
+            </View>
+            <View style={styles.statBadge}>
+              <Text style={styles.statValue}>{filteredRegions.length}</Text>
+              <Text style={styles.statLabel}>Showing</Text>
             </View>
           </View>
         </View>
 
-        {/* Error Display */}
+        {/* Add Button */}
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={[styles.primaryButton, loading && styles.buttonDisabled]}
+            onPress={handleFormToggle}
+            disabled={loading}
+          >
+            <Ionicons name={showForm ? "close" : "add-circle-outline"} size={20} color="#FFFFFF" />
+            <Text style={styles.buttonText}>{showForm ? 'Close Form' : 'Add Region'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Error */}
         {error && (
-          <View style={{
-            backgroundColor: '#fee',
-            padding: 16,
-            marginBottom: 16,
-            borderRadius: 8,
-            borderWidth: 1,
-            borderColor: '#fcc',
-          }}>
-            <Text style={{ color: 'red', fontSize: 14 }}>{error}</Text>
-            <TouchableOpacity 
-              onPress={() => setError(null)}
-              style={{ marginTop: 8 }}
-            >
-              <Text style={{ color: 'red', textDecorationLine: 'underline' }}>
-                Dismiss
-              </Text>
-            </TouchableOpacity>
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={20} color="#FF4444" />
+            <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
 
         {/* Form */}
         {showForm && (
-          <View style={rnPageStyles.form}>
-            <Text style={rnPageStyles.label}>Region Name *</Text>
-            <TextInput
-              style={rnPageStyles.input}
-              value={formData.name}
-              onChangeText={(value) => handleInputChange('name', value)}
-              placeholder="Region Name"
-            />
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{editingRegion ? 'Edit Region' : 'Add Region'}</Text>
 
-            <Text style={rnPageStyles.label}>Description</Text>
-            <TextInput
-              style={[rnPageStyles.input, rnPageStyles.textArea]}
-              value={formData.description}
-              onChangeText={(value) => handleInputChange('description', value)}
-              placeholder="Description"
-              multiline
-              numberOfLines={3}
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Region Name *</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.name}
+                onChangeText={(v) => handleInputChange('name', v)}
+                placeholder="Region Name"
+              />
+            </View>
 
-            <Text style={rnPageStyles.label}>Latitude *</Text>
-            <TextInput
-              style={rnPageStyles.input}
-              value={formData.location.latitude.toString()}
-              onChangeText={(value) => handleLocationChange('latitude', value)}
-              placeholder="Latitude"
-              keyboardType="numeric"
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Description</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                value={formData.description}
+                onChangeText={(v) => handleInputChange('description', v)}
+                placeholder="Description"
+                multiline
+              />
+            </View>
 
-            <Text style={rnPageStyles.label}>Longitude *</Text>
-            <TextInput
-              style={rnPageStyles.input}
-              value={formData.location.longitude.toString()}
-              onChangeText={(value) => handleLocationChange('longitude', value)}
-              placeholder="Longitude"
-              keyboardType="numeric"
-            />
+            <View style={styles.row}>
+              <View style={styles.inputWrapper}>
+                <Text style={styles.label}>Latitude *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.location.latitude.toString()}
+                  onChangeText={(v) => handleLocationChange('latitude', v)}
+                  keyboardType="numeric"
+                  placeholder="Latitude"
+                />
+              </View>
+              <View style={styles.inputWrapper}>
+                <Text style={styles.label}>Longitude *</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.location.longitude.toString()}
+                  onChangeText={(v) => handleLocationChange('longitude', v)}
+                  keyboardType="numeric"
+                  placeholder="Longitude"
+                />
+              </View>
+            </View>
 
-            <Text style={rnPageStyles.label}>Number of Temples</Text>
-            <TextInput
-              style={rnPageStyles.input}
-              value={formData.numberoftemples?.toString() ?? ''}
-              onChangeText={(value) => handleInputChange('numberoftemples', value)}
-              placeholder="Number of Temples"
-              keyboardType="numeric"
-            />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Number of Temples</Text>
+              <TextInput
+                style={styles.input}
+                value={formData.numberoftemples?.toString() ?? ''}
+                onChangeText={(v) => handleInputChange('numberoftemples', v)}
+                keyboardType="numeric"
+                placeholder="Number of Temples"
+              />
+            </View>
 
-            <TouchableOpacity 
-              style={[rnPageStyles.button, loading && rnPageStyles.buttonDisabled]} 
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text style={rnPageStyles.buttonText}>
-                  {editingRegion ? 'Update Region' : 'Save Region'}
-                </Text>
-              )}
-            </TouchableOpacity>
+            <View style={styles.formButtons}>
+              <TouchableOpacity
+                style={[styles.primaryButton, loading && styles.buttonDisabled]}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
+                    <Text style={styles.buttonText}>{editingRegion ? 'Update' : 'Save'}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={handleFormToggle}
+                disabled={loading}
+              >
+                <Ionicons name="close-circle-outline" size={20} color="#FF6B00" />
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
         {/* Regions List */}
-        <View style={rnPageStyles.clubsList}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Regions ({filteredRegions.length})</Text>
           {filteredRegions.map((region) => (
-            <View key={region.id} style={rnPageStyles.card}>
-              <Text style={rnPageStyles.cardTitle}>{region.name}</Text>
-              
-              {region.description && (
-                <Text style={rnPageStyles.cardText}>{region.description}</Text>
-              )}
-              
-              <Text style={rnPageStyles.cardText}>
-                <Text style={rnPageStyles.cardLabel}>📍 Location: </Text>
-                {region.location.latitude.toFixed(4)}, {region.location.longitude.toFixed(4)}
-              </Text>
-              
-              <Text style={rnPageStyles.cardText}>
-                <Text style={rnPageStyles.cardLabel}>🏛️ Temples: </Text>
-                {region.numberoftemples ?? 'N/A'}
-              </Text>
-              
-              <Text style={rnPageStyles.cardText}>
-                <Text style={rnPageStyles.cardLabel}>💬 WhatsApp Groups: </Text>
-                {region.whatsappGroups?.length || 0}
-              </Text>
-              
-              <Text style={rnPageStyles.cardText}>
-                <Text style={rnPageStyles.cardLabel}>📚 Reading Clubs: </Text>
-                {getReadingClubCount(region)}
-              </Text>
+            <View key={region.id} style={styles.groupCard}>
+              <View style={styles.groupHeader}>
+                <View style={styles.groupInfo}>
+                  <Text style={styles.groupName}>{region.name}</Text>
+                  <Text style={styles.groupDescription}>{region.description}</Text>
+                </View>
+              </View>
 
-              <View style={rnPageStyles.cardActions}>
-                <TouchableOpacity 
-                  style={[rnPageStyles.buttonSecondary, loading && rnPageStyles.buttonDisabled]} 
+              <View style={styles.groupMeta}>
+                <Text style={styles.groupRegion}>
+                  <Ionicons name="location-outline" size={14} color="#666" />{' '}
+                  {region.location.latitude.toFixed(4)}, {region.location.longitude.toFixed(4)}
+                </Text>
+              </View>
+
+              <Text style={styles.groupDescription}>🏛️ Temples: {region.numberoftemples ?? 'N/A'}</Text>
+              <Text style={styles.groupDescription}>💬 WhatsApp Groups: {region.whatsappGroups?.length || 0}</Text>
+              <Text style={styles.groupDescription}>📚 Reading Clubs: {getReadingClubCount(region)}</Text>
+
+              <View style={styles.groupActions}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.editButton]}
                   onPress={() => handleEdit(region)}
                   disabled={loading}
                 >
-                  <Text style={rnPageStyles.buttonText}>Edit</Text>
+                  <Ionicons name="pencil" size={16} color="#FF6B00" />
+                  <Text style={styles.editButtonText}>Edit</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[rnPageStyles.buttonDanger, loading && rnPageStyles.buttonDisabled]} 
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.deleteButton]}
                   onPress={() => handleDelete(region.id)}
                   disabled={loading}
                 >
-                  <Text style={rnPageStyles.buttonText}>Delete</Text>
+                  <Ionicons name="trash" size={16} color="#FF4444" />
+                  <Text style={styles.deleteButtonText}>Delete</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -387,9 +394,10 @@ const AdminRegions: React.FC = () => {
         </View>
 
         {filteredRegions.length === 0 && !loading && (
-          <View style={{ alignItems: 'center', marginTop: 32 }}>
-            <Text style={rnPageStyles.cardText}>
-              {searchTerm ? 'No regions match your search.' : 'No regions found.'}
+          <View style={styles.emptyState}>
+            <Ionicons name="map-outline" size={48} color="#DDD" />
+            <Text style={styles.emptyStateText}>
+              {searchTerm ? 'No regions match your search.' : 'No regions yet'}
             </Text>
           </View>
         )}
@@ -397,5 +405,101 @@ const AdminRegions: React.FC = () => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#FDFCFA' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: '#FDFCFA',
+  },
+  headerTitle: { fontSize: 22, fontWeight: '600', color: '#FF6B00' },
+  headerSubtitle: { fontSize: 12, color: '#999' },
+  headerIcon: {
+    width: 40, height: 40, backgroundColor: '#FFF4E6',
+    borderRadius: 20, alignItems: 'center', justifyContent: 'center'
+  },
+  content: { flex: 1, paddingHorizontal: 24 },
+  section: {
+    backgroundColor: '#FFF', borderRadius: 12, padding: 20, marginBottom: 16,
+    elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 4,
+  },
+  sectionTitle: { fontSize: 20, fontWeight: '400', color: '#1A1A1A', marginBottom: 20 },
+  searchContainer: { marginBottom: 16 },
+  searchInputContainer: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8,
+    backgroundColor: '#F9F9F9', paddingHorizontal: 12, marginBottom: 12,
+  },
+  searchIcon: { marginRight: 10 },
+  searchInput: { flex: 1, paddingVertical: 12, fontSize: 16, color: '#1A1A1A' },
+  searchButtons: { flexDirection: 'row', gap: 12 },
+  statsContainer: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  statBadge: {
+    flex: 1, backgroundColor: '#FFF4E6', borderRadius: 8,
+    padding: 12, alignItems: 'center', borderWidth: 1, borderColor: '#FFE4CC',
+  },
+  statValue: { fontSize: 20, color: '#FF6B00', fontWeight: '600' },
+  statLabel: { fontSize: 12, color: '#FF6B00' },
+  primaryButton: {
+    backgroundColor: '#FF6B00', paddingVertical: 18, borderRadius: 12,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent', borderWidth: 1, borderColor: '#E0E0E0',
+    paddingVertical: 18, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+  },
+  buttonDisabled: { backgroundColor: '#FFB380' },
+  buttonText: { color: '#FFF', fontSize: 16, fontWeight: '600', marginLeft: 8 },
+  secondaryButtonText: { color: '#FF6B00', fontSize: 16, marginLeft: 8 },
+  errorContainer: {
+    backgroundColor: '#FFEBEE', padding: 16, marginBottom: 16, borderRadius: 8,
+    borderWidth: 1, borderColor: '#FFCDD2', flexDirection: 'row', alignItems: 'center',
+  },
+  errorText: { color: '#FF4444', marginLeft: 8 },
+  inputGroup: { marginBottom: 16 },
+  label: { fontSize: 16, marginBottom: 8, fontWeight: '500', color: '#1A1A1A' },
+  input: {
+    borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8,
+    padding: 12, fontSize: 16, backgroundColor: '#FFF', color: '#1A1A1A',
+  },
+  textArea: { minHeight: 80, textAlignVertical: 'top' },
+  row: { flexDirection: 'row', gap: 12 },
+  inputWrapper: { flex: 1 },
+  formButtons: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  groupCard: {
+    backgroundColor: '#FFF9F5', borderRadius: 12, padding: 16,
+    marginBottom: 12, borderWidth: 1, borderColor: '#FFE4CC',
+  },
+  groupHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  groupInfo: { flex: 1 },
+  groupName: { fontSize: 16, fontWeight: '500', marginBottom: 4 },
+  groupDescription: { fontSize: 14, color: '#666', marginBottom: 6 },
+  groupMeta: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  groupRegion: { fontSize: 13, color: '#666' },
+  groupActions: { flexDirection: 'row', gap: 8 },
+  actionButton: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 10, borderRadius: 8,
+  },
+  editButton: { backgroundColor: '#FFF4E6', borderWidth: 1, borderColor: '#FF6B00' },
+  editButtonText: { color: '#FF6B00', fontSize: 14, marginLeft: 4 },
+  deleteButton: { backgroundColor: '#FFEBEE', borderWidth: 1, borderColor: '#FF4444' },
+  deleteButtonText: { color: '#FF4444', fontSize: 14, marginLeft: 4 },
+  emptyState: {
+    alignItems: 'center', padding: 40, backgroundColor: '#FFF',
+    borderRadius: 12, marginBottom: 16,
+  },
+  emptyStateText: { fontSize: 16, color: '#666', marginTop: 16 },
+  loadingState: {
+    flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF',
+  },
+  loadingText: { fontSize: 14, color: '#666', marginTop: 16 },
+});
 
 export default AdminRegions;
