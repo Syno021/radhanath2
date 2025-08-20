@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Platform, StatusBar, useWindowDimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Platform, StatusBar, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ExploreStackParamList } from '../app/navigation/ExploreStack';
+import { collection, onSnapshot, getCountFromServer } from 'firebase/firestore';
+import { db } from '../firebaseCo';
 
 type ExploreNavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'Explore'>;
 
@@ -12,11 +14,23 @@ interface ExploreOption {
   label: string;
   description: string;
   icon: string;
+  emoji: string;
   color: string;
-  gradient: string[];
   route: string;
   count?: number;
   featured?: boolean;
+  collectionName?: string;
+}
+
+interface FirebaseStats {
+  users: number;
+  books: number;
+  regions: number;
+  temples: number;
+  whatsappGroups: number;
+  readingClubs: number;
+  bookReports: number;
+  loading: boolean;
 }
 
 export default function Explore() {
@@ -25,57 +39,137 @@ export default function Explore() {
   const isTablet = width > 768;
   const userInitials = 'JD';
 
+  const [stats, setStats] = useState<FirebaseStats>({
+    users: 0,
+    books: 0,
+    regions: 0,
+    temples: 0,
+    whatsappGroups: 0,
+    readingClubs: 0,
+    bookReports: 0,
+    loading: true,
+  });
+
+  // Fetch real-time statistics from Firestore
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const collections = [
+          { name: 'users', key: 'users' },
+          { name: 'books', key: 'books' },
+          { name: 'regions', key: 'regions' },
+          { name: 'temples', key: 'temples' },
+          { name: 'whatsapp-groups', key: 'whatsappGroups' },
+          { name: 'reading-clubs', key: 'readingClubs' },
+          { name: 'bookReports', key: 'bookReports' },
+        ];
+
+        const statsPromises = collections.map(async (col) => {
+          try {
+            const snapshot = await getCountFromServer(collection(db, col.name));
+            return { key: col.key, count: snapshot.data().count };
+          } catch (error) {
+            console.warn(`Error fetching count for ${col.name}:`, error);
+            return { key: col.key, count: 0 };
+          }
+        });
+
+        const results = await Promise.all(statsPromises);
+        
+        const newStats = { ...stats, loading: false };
+        results.forEach(result => {
+          newStats[result.key as keyof FirebaseStats] = result.count;
+        });
+
+        setStats(newStats);
+      } catch (error) {
+        console.error('Error fetching statistics:', error);
+        setStats(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    fetchStats();
+
+    // Set up real-time listeners for collections that change frequently
+    const unsubscribers: (() => void)[] = [];
+
+    // Listen to users collection changes
+    const usersUnsub = onSnapshot(
+      collection(db, 'users'), 
+      () => fetchStats(),
+      (error) => console.warn('Users listener error:', error)
+    );
+    unsubscribers.push(usersUnsub);
+
+    // Listen to book reports collection changes
+    const reportsUnsub = onSnapshot(
+      collection(db, 'bookReports'), 
+      () => fetchStats(),
+      (error) => console.warn('Book reports listener error:', error)
+    );
+    unsubscribers.push(reportsUnsub);
+
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, []);
+
   const exploreOptions: ExploreOption[] = [
     { 
       id: '1',
       label: 'Sacred Books', 
       description: 'Access Srila Prabhupada\'s complete works',
-      icon: 'book-outline', 
-      color: '#FF6B00', 
-      gradient: ['#FF6B00', '#FF8C42'],
+      icon: 'book-outline',
+      emoji: '📚',
+      color: '#FF6B00',
       route: 'Book',
-      count: 150,
-      featured: true
+      count: stats.books,
+      featured: true,
+      collectionName: 'books'
     },
     { 
       id: '2',
       label: 'Local Regions', 
       description: 'Find devotees and temples near you',
-      icon: 'location-outline', 
-      color: '#10B981', 
-      gradient: ['#10B981', '#34D399'],
+      icon: 'location-outline',
+      emoji: '🌍',
+      color: '#10B981',
       route: 'Regions',
-      count: 25
+      count: stats.regions,
+      collectionName: 'regions'
     },
     { 
       id: '3',
       label: 'WhatsApp Groups', 
       description: 'Join active spiritual communities',
-      icon: 'chatbubbles-outline', 
-      color: '#3B82F6', 
-      gradient: ['#3B82F6', '#60A5FA'],
+      icon: 'chatbubbles-outline',
+      emoji: '👥',
+      color: '#3B82F6',
       route: 'Groups',
-      count: 42
+      count: stats.whatsappGroups,
+      collectionName: 'whatsapp-groups'
     },
     { 
       id: '4',
       label: 'Reading Clubs', 
       description: 'Study books with like-minded souls',
-      icon: 'library-outline', 
-      color: '#8B5CF6', 
-      gradient: ['#8B5CF6', '#A78BFA'],
+      icon: 'library-outline',
+      emoji: '📖',
+      color: '#8B5CF6',
       route: 'Clubs',
-      count: 18
+      count: stats.readingClubs,
+      collectionName: 'reading-clubs'
     },
     { 
       id: '5',
       label: 'Sacred Temples', 
       description: 'Discover ISKCON temples worldwide',
-      icon: 'business-outline', 
-      color: '#EC4899', 
-      gradient: ['#EC4899', '#F472B6'],
+      icon: 'business-outline',
+      emoji: '🏛️',
+      color: '#EC4899',
       route: 'Temples',
-      count: 67
+      count: stats.temples,
+      collectionName: 'temples'
     },
   ];
 
@@ -95,44 +189,42 @@ export default function Explore() {
         style={[
           styles.exploreCard,
           isLarge && styles.featuredCard,
-          isTablet && styles.tabletCard
         ]}
-        activeOpacity={0.85}
+        activeOpacity={0.7}
         onPress={() => navigation.navigate({ name: item.route as any, params: undefined })}
       >
-        <View style={[styles.cardGradient, { backgroundColor: item.color }]}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
-              <Ionicons name={item.icon as any} size={isLarge ? 32 : 24} color="#FFFFFF" />
-            </View>
-            {item.featured && (
-              <View style={styles.featuredBadge}>
-                <Text style={styles.featuredText}>Featured</Text>
-              </View>
-            )}
-          </View>
+        <View style={[
+          styles.iconContainer, 
+          { backgroundColor: item.color + '15' }
+        ]}>
+          <Text style={styles.cardEmoji}>
+            {item.emoji}
+          </Text>
+        </View>
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle}>
+            {item.label}
+          </Text>
+          <Text style={styles.cardDescription}>
+            {item.description}
+          </Text>
           
-          <View style={styles.cardContent}>
-            <Text style={[styles.cardTitle, isLarge && styles.featuredTitle]}>
-              {item.label}
+          <View style={styles.cardFooter}>
+            <Text style={styles.countText}>
+              {stats.loading ? 'Loading...' : `${item.count || 0}+ available`}
             </Text>
-            <Text style={[styles.cardDescription, isLarge && styles.featuredDescription]}>
-              {item.description}
+            <Text style={styles.arrow}>
+              →
             </Text>
-            
-            <View style={styles.cardFooter}>
-              <View style={styles.countContainer}>
-                <Text style={styles.countText}>{item.count}+ available</Text>
-              </View>
-              <View style={styles.arrowContainer}>
-                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-              </View>
-            </View>
           </View>
         </View>
       </TouchableOpacity>
     );
   };
+
+  // Calculate additional stats
+  const totalCommunityItems = stats.books + stats.regions + stats.whatsappGroups + stats.readingClubs + stats.temples;
+  const avgBooksPerUser = stats.users > 0 ? Math.round(stats.bookReports / stats.users) : 0;
 
   return (
     <View style={styles.container}>
@@ -144,77 +236,103 @@ export default function Explore() {
           <Text style={styles.greeting}>Hare Krishna</Text>
           <Text style={styles.headerTitle}>Explore Spiritual Journey</Text>
         </View>
-        <View style={styles.profileContainer}>
-          <View style={styles.notificationBadge}>
-            <TouchableOpacity style={styles.notificationButton}>
-              <Ionicons name="notifications-outline" size={20} color="#666" />
-              <View style={styles.notificationDot} />
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={styles.profileButton}>
-            <Text style={styles.userInitials}>{userInitials}</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.profileButton}>
+          <Text style={styles.userInitials}>{userInitials}</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Quick Actions */}
-      <View style={styles.quickActionsContainer}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickActionsScroll}>
-          {quickActions.map((action, index) => (
-            <TouchableOpacity key={index} style={styles.quickActionCard}>
-              <View style={[styles.quickActionIcon, { backgroundColor: action.color + '20' }]}>
-                <Ionicons name={action.icon as any} size={18} color={action.color} />
-              </View>
-              <Text style={styles.quickActionText}>{action.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      {/* Main Content */}
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>Discover & Connect</Text>
-        <Text style={styles.sectionSubtitle}>
-          Explore books, communities, and spiritual resources
-        </Text>
-
-        <View style={styles.exploreGrid}>
-          {exploreOptions.map((item, index) => renderExploreCard(item, index))}
+        {/* Welcome Section */}
+        <View style={styles.welcomeSection}>
+          <Text style={styles.welcomeTitle}>
+            Connect & Engage
+          </Text>
+          <View style={styles.divider} />
+          <Text style={styles.welcomeSubtitle}>
+            Explore books, communities, and spiritual resources
+          </Text>
         </View>
 
-        {/* Stats Section */}
-        <View style={styles.statsSection}>
-          <Text style={styles.statsTitle}>Community Stats</Text>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>500+</Text>
-              <Text style={styles.statLabel}>Active Members</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>150+</Text>
-              <Text style={styles.statLabel}>Sacred Books</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>25+</Text>
-              <Text style={styles.statLabel}>Regions</Text>
-            </View>
+        {/* Main Features */}
+        <View style={styles.mainSection}>
+          <View style={styles.exploreGrid}>
+            {exploreOptions.map((item, index) => renderExploreCard(item, index))}
           </View>
+        </View>
+
+        {/* Enhanced Stats Section */}
+        <View style={styles.statsSection}>
+          <Text style={styles.statsSectionTitle}>Live Community Stats</Text>
+          {stats.loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#FF6B00" />
+              <Text style={styles.loadingText}>Loading community statistics...</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.users}+</Text>
+                  <Text style={styles.statLabel}>Active Members</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.books}+</Text>
+                  <Text style={styles.statLabel}>Sacred Books</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.regions}+</Text>
+                  <Text style={styles.statLabel}>Regions</Text>
+                </View>
+              </View>
+              
+              {/* Additional Stats Row */}
+              <View style={[styles.statsGrid, { marginTop: 12 }]}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.temples}+</Text>
+                  <Text style={styles.statLabel}>Temples</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.whatsappGroups}+</Text>
+                  <Text style={styles.statLabel}>WhatsApp Groups</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.readingClubs}+</Text>
+                  <Text style={styles.statLabel}>Reading Clubs</Text>
+                </View>
+              </View>
+
+              {/* Engagement Stats */}
+              <View style={[styles.statsGrid, { marginTop: 12 }]}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats.bookReports}+</Text>
+                  <Text style={styles.statLabel}>Book Reports</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{totalCommunityItems}+</Text>
+                  <Text style={styles.statLabel}>Total Resources</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{avgBooksPerUser}</Text>
+                  <Text style={styles.statLabel}>Avg Books/User</Text>
+                </View>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Inspirational Quote */}
         <View style={styles.quoteSection}>
-          <View style={styles.quoteContainer}>
-            <Ionicons name="quote" size={24} color="#FF6B00" style={styles.quoteIcon} />
-            <Text style={styles.quoteText}>
-              "The secret of success is to try always to improve yourself no matter where you are or what your position. Learn all you can."
-            </Text>
-            <Text style={styles.quoteAuthor}>- Srila Prabhupada</Text>
-          </View>
+          <Text style={styles.quoteText}>
+            "The secret of success is to try always to improve yourself no matter where you are or what your position. Learn all you can."
+          </Text>
+          <Text style={styles.quoteAuthor}>
+            - Srila Prabhupada
+          </Text>
+          <View style={styles.quoteDivider} />
         </View>
       </ScrollView>
     </View>
@@ -227,103 +345,41 @@ const styles = {
     backgroundColor: '#FDFCFA',
   },
   
-  // Header Styles
+  // Header Styles (simplified like Home page)
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 50,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    paddingHorizontal: 24,
+    paddingTop: 60,
     paddingBottom: 20,
-    backgroundColor: '#FDFCFA',
-    borderBottomWidth: 1,
-    borderBottomColor: '#FFE4CC',
+    backgroundColor: '#FDFCFA'
   },
   headerLeft: {
     flex: 1,
   },
   greeting: {
-    fontSize: 14,
+    fontSize: 22,
+    fontWeight: '600' as const,
     color: '#FF6B00',
-    fontWeight: '500',
-    marginBottom: 2,
+    letterSpacing: 0.5,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    letterSpacing: 0.3,
-  },
-  profileContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  notificationBadge: {
-    position: 'relative',
-  },
-  notificationButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF4757',
+    fontSize: 12,
+    color: '#999',
+    fontWeight: '300' as const,
+    marginTop: 2,
   },
   profileButton: {
-    width: 40,
-    height: 40,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#FF6B00',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#FF6B00',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    backgroundColor: '#FF6B00'
   },
   userInitials: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '700',
-  },
-
-  // Quick Actions
-  quickActionsContainer: {
-    paddingVertical: 16,
-    backgroundColor: '#FDFCFA',
-  },
-  quickActionsScroll: {
-    marginTop: 12,
-  },
-  quickActionCard: {
-    alignItems: 'center',
-    marginLeft: 20,
-    minWidth: 70,
-  },
-  quickActionIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  quickActionText: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
-    textAlign: 'center',
+    fontWeight: '500' as const,
   },
 
   // Content Styles
@@ -331,132 +387,133 @@ const styles = {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
     paddingBottom: 40,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 4,
+
+  // Welcome Section (similar to Home page hero)
+  welcomeSection: {
+    paddingHorizontal: 24,
+    paddingVertical: 30,
+    alignItems: 'center'
   },
-  sectionSubtitle: {
-    fontSize: 14,
+  welcomeTitle: {
+    fontSize: 32,
+    fontWeight: '300' as const,
+    color: '#1A1A1A',
+    textAlign: 'center' as const,
+    lineHeight: 40,
+    marginBottom: 12
+  },
+  divider: {
+    width: 50,
+    height: 2,
+    backgroundColor: '#FF6B00',
+    marginBottom: 16
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
     color: '#666',
-    fontWeight: '400',
-    marginBottom: 24,
-    lineHeight: 20,
+    textAlign: 'center' as const,
+    lineHeight: 24,
+    fontWeight: '300' as const
   },
 
-  // Explore Grid
+  // Main Section
+  mainSection: {
+    paddingHorizontal: 24,
+    marginBottom: 40,
+  },
+
+  // Explore Cards (styled like Home page cards)
   exploreGrid: {
     gap: 16,
   },
   exploreCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    elevation: 4,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    elevation: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    marginBottom: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4
   },
   featuredCard: {
-    marginBottom: 12,
-  },
-  tabletCard: {
-    // Add tablet-specific styles if needed
-  },
-  cardGradient: {
-    padding: 20,
-    minHeight: 140,
-    justifyContent: 'space-between',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
+    elevation: 2,
+    shadowColor: '#FF6B00',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   iconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    marginRight: 16
   },
-  featuredBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  featuredText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+  cardEmoji: {
+    fontSize: 18
   },
   cardContent: {
     flex: 1,
   },
   cardTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 4,
-    letterSpacing: 0.3,
-  },
-  featuredTitle: {
-    fontSize: 22,
+    fontSize: 16,
+    color: '#1A1A1A',
+    fontWeight: '500' as const,
+    marginBottom: 4
   },
   cardDescription: {
-    color: 'rgba(255, 255, 255, 0.9)',
     fontSize: 13,
-    fontWeight: '400',
+    color: '#666',
     lineHeight: 18,
-    marginBottom: 16,
-  },
-  featuredDescription: {
-    fontSize: 14,
-    lineHeight: 20,
+    marginBottom: 8
   },
   cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  countContainer: {
-    flex: 1,
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
   },
   countText: {
-    color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 12,
-    fontWeight: '500',
+    color: '#999',
+    fontWeight: '400' as const,
   },
-  arrowContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  arrow: {
+    color: '#FF6B00',
+    fontSize: 18,
+    fontWeight: '300' as const
   },
 
   // Stats Section
   statsSection: {
-    marginTop: 32,
-    marginBottom: 24,
+    paddingHorizontal: 24,
+    marginBottom: 40,
   },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+  statsSectionTitle: {
+    fontSize: 20,
+    fontWeight: '400',
     color: '#1A1A1A',
-    marginBottom: 16,
+    marginBottom: 24,
+    letterSpacing: 0.3
+  },
+  loadingContainer: {
+    alignItems: 'center' as const,
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '300',
   },
   statsGrid: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 12,
   },
   statCard: {
@@ -464,56 +521,51 @@ const styles = {
     backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 12,
-    alignItems: 'center',
-    elevation: 2,
+    alignItems: 'center' as const,
+    elevation: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
   },
   statNumber: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '500' as const,
     color: '#FF6B00',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
     color: '#666',
-    fontWeight: '500',
-    textAlign: 'center',
+    fontWeight: '300' as const,
+    textAlign: 'center' as const,
   },
 
-  // Quote Section
+  // Quote Section (styled like Home page)
   quoteSection: {
-    marginTop: 16,
-  },
-  quoteContainer: {
-    backgroundColor: '#FFF9F5',
-    padding: 24,
-    borderRadius: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF6B00',
-    position: 'relative',
-  },
-  quoteIcon: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    opacity: 0.3,
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+    alignItems: 'center' as const
   },
   quoteText: {
-    fontSize: 15,
-    color: '#1A1A1A',
-    fontWeight: '400',
-    lineHeight: 22,
-    fontStyle: 'italic',
-    marginBottom: 12,
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center' as const,
+    fontWeight: '300' as const,
+    fontStyle: 'italic' as const,
+    lineHeight: 24,
+    letterSpacing: 0.2
   },
   quoteAuthor: {
     fontSize: 12,
-    color: '#FF6B00',
-    fontWeight: '600',
-    textAlign: 'right',
+    color: '#999',
+    marginTop: 12,
+    fontWeight: '400' as const
+  },
+  quoteDivider: {
+    width: 30,
+    height: 1,
+    backgroundColor: '#DDD',
+    marginTop: 16
   },
 };

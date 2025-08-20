@@ -12,8 +12,11 @@ import {
   Platform,
   Image,
   Dimensions,
+  Modal,
+  FlatList,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+// Remove the old Picker import
+// import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import TempleService, { Temple, Region, TempleInput } from '../services/TempleService';
 
