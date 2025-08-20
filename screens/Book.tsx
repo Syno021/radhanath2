@@ -144,7 +144,7 @@ export default function Books() {
       {/* Book Image Container */}
       <View style={styles.imageContainer}>
         <Image 
-          source={require('../assets/images/book.png')} 
+          source={require('../assets/images/book.jpg')} 
           style={styles.bookImage}
         />
         
@@ -156,17 +156,17 @@ export default function Books() {
         {/* Favorite Badge */}
         {book.isFavorite && (
           <TouchableOpacity style={styles.favoriteButton}>
-            <Ionicons name="heart" size={16} color="#FF4757" />
+            <Ionicons name="heart" size={14} color="#FF6B00" />
           </TouchableOpacity>
         )}
 
         {/* Quick Action Overlay */}
         <View style={styles.quickActions}>
           <TouchableOpacity style={styles.quickActionButton}>
-            <Ionicons name="eye-outline" size={16} color="#FFFFFF" />
+            <Ionicons name="eye-outline" size={14} color="#FFFFFF" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.quickActionButton}>
-            <Ionicons name="bookmark-outline" size={16} color="#FFFFFF" />
+            <Ionicons name="bookmark-outline" size={14} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -177,6 +177,11 @@ export default function Books() {
         {book.category && (
           <Text style={styles.categoryLabel}>{book.category}</Text>
         )}
+
+        {/* Book ID */}
+        {book.id ? (
+          <Text style={styles.bookId}>ID: {book.id}</Text>
+        ) : null}
 
         {/* Title */}
         <Text style={styles.bookTitle} numberOfLines={2}>
@@ -195,8 +200,8 @@ export default function Books() {
               <Ionicons
                 key={star}
                 name={star <= (book.rating || 0) ? "star" : "star-outline"}
-                size={12}
-                color="#FFD700"
+                size={11}
+                color="#FFB800"
               />
             ))}
           </View>
@@ -205,10 +210,10 @@ export default function Books() {
 
         {/* Action Button */}
         <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: getFormatColor(book.format) }]}
+          style={styles.actionButton}
           onPress={() => handleReadBook(book.bbtMediaLink)}
         >
-          <Ionicons name="download-outline" size={14} color="#FFFFFF" />
+          <Ionicons name="book-outline" size={14} color="#FF6B00" />
           <Text style={styles.actionButtonText}>Read Now</Text>
         </TouchableOpacity>
       </View>
@@ -219,128 +224,15 @@ export default function Books() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FF6B00" />
-        <Text style={styles.loadingText}>Loading Books...</Text>
+        <Text style={styles.loadingText}>Loading Sacred Books...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
-          </TouchableOpacity>
-          <View>
-            <Text style={styles.headerTitle}>Sacred Books</Text>
-            <Text style={styles.headerSubtitle}>{books.length} books available</Text>
-          </View>
-        </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerAction}>
-            <Ionicons name="grid-outline" size={20} color="#666" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerAction}>
-            <Ionicons name="heart-outline" size={20} color="#666" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Fixed Filters */}
-      <View style={styles.filtersSection}>
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color="#999" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search books, authors..."
-            placeholderTextColor="#999"
-            value={filters.searchText}
-            onChangeText={(text) => setFilters(prev => ({ ...prev, searchText: text }))}
-          />
-          {filters.searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setFilters(prev => ({ ...prev, searchText: '' }))}>
-              <Ionicons name="close" size={18} color="#999" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Filter Pills */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersRow}
-        >
-          {/* Category Filter */}
-          <View style={styles.filterPill}>
-            <Ionicons name="library-outline" size={14} color="#FF6B00" />
-            <Picker
-              selectedValue={filters.category}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
-              style={styles.pillPicker}
-            >
-              <Picker.Item label="Category" value="" />
-              {categories.map(category => (
-                <Picker.Item key={category} label={category} value={category} />
-              ))}
-            </Picker>
-          </View>
-
-          {/* Language Filter */}
-          <View style={styles.filterPill}>
-            <Ionicons name="language-outline" size={14} color="#FF6B00" />
-            <Picker
-              selectedValue={filters.language}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, language: value }))}
-              style={styles.pillPicker}
-            >
-              <Picker.Item label="Language" value="" />
-              {languages.map(language => (
-                <Picker.Item key={language} label={language} value={language} />
-              ))}
-            </Picker>
-          </View>
-
-          {/* Format Filter */}
-          <View style={styles.filterPill}>
-            <Ionicons name="document-outline" size={14} color="#FF6B00" />
-            <Picker
-              selectedValue={filters.format}
-              onValueChange={(value) => setFilters(prev => ({ ...prev, format: value }))}
-              style={styles.pillPicker}
-            >
-              <Picker.Item label="Format" value="" />
-              {formats.map(format => (
-                <Picker.Item key={format} label={format} value={format} />
-              ))}
-            </Picker>
-          </View>
-
-          {/* Clear All Filter */}
-          {(filters.category || filters.language || filters.format) && (
-            <TouchableOpacity style={styles.clearAllPill} onPress={clearAllFilters}>
-              <Ionicons name="close" size={14} color="#FFFFFF" />
-              <Text style={styles.clearAllText}>Clear All</Text>
-            </TouchableOpacity>
-          )}
-        </ScrollView>
-      </View>
-
-      {/* Results Header */}
-      <View style={styles.resultsHeader}>
-        <Text style={styles.resultsCount}>
-          {filteredBooks.length} Results
-        </Text>
-        <TouchableOpacity style={styles.sortButton}>
-          <Text style={styles.sortText}>Sort by</Text>
-          <Ionicons name="chevron-down" size={16} color="#666" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Books Grid */}
+      <StatusBar barStyle="dark-content" backgroundColor="#FDFCFA" />
+      {/* Books Grid with scrolling header and filters */}
       <FlatList
         data={filteredBooks}
         renderItem={renderBookCard}
@@ -350,14 +242,136 @@ export default function Books() {
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
         columnWrapperStyle={isTablet || !isTablet ? styles.row : null}
+        ListHeaderComponent={
+          <View>
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerContent}>
+                <Text style={styles.headerTitle}>Srila Prabhupada's Books</Text>
+                <Text style={styles.headerSubtitle}>{books.length} sacred texts available</Text>
+              </View>
+              <TouchableOpacity style={styles.headerAction}>
+                <Ionicons name="heart-outline" size={20} color="#FF6B00" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Spiritual Quote */}
+            <View style={styles.quoteSection}>
+              <Text style={styles.quoteText}>
+                "Books are the basis. Preach and read."
+              </Text>
+              <Text style={styles.quoteAuthor}>- Srila Prabhupada</Text>
+              <View style={styles.quoteDivider} />
+            </View>
+
+            {/* Filters */}
+            <View style={styles.filtersSection}>
+              {/* Search Bar */}
+              <View style={styles.searchContainer}>
+                <Ionicons name="search" size={16} color="#999" />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search sacred texts, authors..."
+                  placeholderTextColor="#999"
+                  value={filters.searchText}
+                  onChangeText={(text) => setFilters(prev => ({ ...prev, searchText: text }))}
+                />
+                {filters.searchText.length > 0 && (
+                  <TouchableOpacity onPress={() => setFilters(prev => ({ ...prev, searchText: '' }))}>
+                    <Ionicons name="close" size={16} color="#999" />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Filter Pills - Stacked Layout */}
+              <View style={styles.filtersContainer}>
+                {/* First Row */}
+                <View style={styles.filtersRow}>
+                  {/* Category Filter */}
+                  <View style={[styles.filterPill, styles.filterPillFlex]}>
+                    <Ionicons name="library-outline" size={12} color="#FF6B00" />
+                    <Picker
+                      selectedValue={filters.category}
+                      onValueChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
+                      style={styles.pillPicker}
+                    >
+                      <Picker.Item label="Category" value="" />
+                      {categories.map(category => (
+                        <Picker.Item key={category} label={category} value={category} />
+                      ))}
+                    </Picker>
+                  </View>
+
+                  {/* Language Filter */}
+                  <View style={[styles.filterPill, styles.filterPillFlex]}>
+                    <Ionicons name="language-outline" size={12} color="#FF6B00" />
+                    <Picker
+                      selectedValue={filters.language}
+                      onValueChange={(value) => setFilters(prev => ({ ...prev, language: value }))}
+                      style={styles.pillPicker}
+                    >
+                      <Picker.Item label="Language" value="" />
+                      {languages.map(language => (
+                        <Picker.Item key={language} label={language} value={language} />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+
+                {/* Second Row */}
+                <View style={styles.filtersRow}>
+                  {/* Format Filter */}
+                  <View style={[styles.filterPill, styles.filterPillFlex]}>
+                    <Ionicons name="document-outline" size={12} color="#FF6B00" />
+                    <Picker
+                      selectedValue={filters.format}
+                      onValueChange={(value) => setFilters(prev => ({ ...prev, format: value }))}
+                      style={styles.pillPicker}
+                    >
+                      <Picker.Item label="Format" value="" />
+                      {formats.map(format => (
+                        <Picker.Item key={format} label={format} value={format} />
+                      ))}
+                    </Picker>
+                  </View>
+
+                  {/* Clear All Filter */}
+                  {(filters.category || filters.language || filters.format) ? (
+                    <TouchableOpacity style={[styles.clearAllPill, styles.filterPillFlex]} onPress={clearAllFilters}>
+                      <Ionicons name="close" size={12} color="#FFFFFF" />
+                      <Text style={styles.clearAllText}>Clear All</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={[styles.filterPill, styles.filterPillFlex, styles.placeholderPill]}>
+                      <Ionicons name="options-outline" size={12} color="#CCC" />
+                      <Text style={styles.placeholderText}>More Filters</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
+
+            {/* Results Header */}
+            <View style={styles.resultsHeader}>
+              <Text style={styles.resultsCount}>
+                {filteredBooks.length} Sacred Texts
+              </Text>
+              <TouchableOpacity style={styles.sortButton}>
+                <Text style={styles.sortText}>Sort by Title</Text>
+                <Ionicons name="chevron-down" size={14} color="#999" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        }
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <View style={styles.emptyIcon}>
-              <Ionicons name="book-outline" size={48} color="#E5E5E5" />
+              <Text style={styles.emptyIconText}>📚</Text>
             </View>
             <Text style={styles.emptyTitle}>No books found</Text>
             <Text style={styles.emptyMessage}>
-              Try adjusting your search or filter criteria
+              Try adjusting your search or filter criteria{'\n'}
+              to find the spiritual texts you're looking for
             </Text>
             <TouchableOpacity style={styles.emptyAction} onPress={clearAllFilters}>
               <Text style={styles.emptyActionText}>Clear All Filters</Text>
@@ -372,19 +386,19 @@ export default function Books() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FDFCFA',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#FDFCFA',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
     color: '#666',
-    fontWeight: '400',
+    fontWeight: '300',
   },
 
   // Header Styles
@@ -392,47 +406,86 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: '#FDFCFA',
+  },
+  headerContent: {
+    flex: 1,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 16,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#FF6B00',
+    letterSpacing: 0.5,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#666',
+    color: '#999',
+    fontWeight: '300',
     marginTop: 2,
   },
-  headerRight: {
-    flexDirection: 'row',
-    gap: 8,
-  },
   headerAction: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+  },
+
+  // Quote Section
+  quoteSection: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    alignItems: 'center',
+    backgroundColor: '#FDFCFA',
+  },
+  quoteText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    fontWeight: '300',
+    fontStyle: 'italic',
+    lineHeight: 20,
+    letterSpacing: 0.2,
+  },
+  quoteAuthor: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 6,
+    fontWeight: '400',
+  },
+  quoteDivider: {
+    width: 30,
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginTop: 12,
   },
 
   // Filters Section
@@ -440,41 +493,52 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: '#F0F0F0',
+  },
+  filtersContainer: {
+    gap: 8,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FDFCFA',
     borderRadius: 12,
     paddingHorizontal: 16,
-    marginHorizontal: 16,
+    marginHorizontal: 24,
     marginBottom: 12,
-    height: 44,
+    height: 42,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14,
     color: '#1A1A1A',
     marginLeft: 8,
+    fontWeight: '300',
   },
   filtersRow: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
     gap: 8,
   },
   filterPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FDFCFA',
     borderRadius: 20,
     paddingLeft: 12,
-    height: 36,
-    minWidth: 100,
+    height: 32,
+    minWidth: 90,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  filterPillFlex: {
+    flex: 1,
   },
   pillPicker: {
     color: '#1A1A1A',
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '400',
     marginLeft: 4,
   },
   clearAllPill: {
@@ -483,13 +547,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF6B00',
     borderRadius: 20,
     paddingHorizontal: 12,
-    height: 36,
+    height: 32,
     gap: 4,
   },
   clearAllText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
+  },
+  placeholderPill: {
+    backgroundColor: '#FAFAFA',
+    borderColor: '#EEEEEE',
+  },
+  placeholderText: {
+    color: '#999999',
+    fontSize: 12,
+    fontWeight: '400',
+    marginLeft: 4,
   },
 
   // Results Header
@@ -497,14 +571,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
     backgroundColor: '#FFFFFF',
   },
   resultsCount: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '400',
     color: '#1A1A1A',
+    letterSpacing: 0.3,
   },
   sortButton: {
     flexDirection: 'row',
@@ -512,14 +587,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sortText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
-    fontWeight: '500',
+    fontWeight: '300',
   },
 
   // Books List
   booksList: {
-    padding: 16,
+    padding: 24,
     paddingBottom: 80,
   },
   row: {
@@ -530,11 +605,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: '#FF6B00',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#F8F8F8',
   },
 
   // Book Card Image
@@ -543,8 +620,9 @@ const styles = StyleSheet.create({
   },
   bookImage: {
     width: '100%',
-    height: 140,
+    height: 120,
     resizeMode: 'cover',
+    opacity: 0.9,
   },
   formatBadge: {
     position: 'absolute',
@@ -552,22 +630,23 @@ const styles = StyleSheet.create({
     left: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 10,
+    borderRadius: 8,
   },
   formatText: {
     color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 9,
+    fontWeight: '600',
     textTransform: 'uppercase',
+    letterSpacing: 0.3,
   },
   favoriteButton: {
     position: 'absolute',
     top: 8,
     right: 8,
-    width: 28,
-    height: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -576,68 +655,79 @@ const styles = StyleSheet.create({
     bottom: 8,
     right: 8,
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
   },
   quickActionButton: {
-    width: 28,
-    height: 28,
+    width: 24,
+    height: 24,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 14,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   // Book Details
   bookDetails: {
-    padding: 12,
+    padding: 16,
   },
   categoryLabel: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#FF6B00',
-    fontWeight: '700',
+    fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
+  bookId: {
+    fontSize: 10,
+    color: '#999',
+    fontWeight: '300',
+    marginBottom: 4,
+  },
   bookTitle: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '500',
     color: '#1A1A1A',
     lineHeight: 18,
     marginBottom: 4,
+    letterSpacing: 0.2,
   },
   bookAuthor: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
-    fontWeight: '400',
-    marginBottom: 6,
+    fontWeight: '300',
+    marginBottom: 8,
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   starsContainer: {
     flexDirection: 'row',
-    marginRight: 4,
+    marginRight: 6,
   },
   ratingCount: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#999',
-    fontWeight: '500',
+    fontWeight: '300',
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 8,
-    gap: 4,
+    gap: 6,
+    backgroundColor: '#FFF4E6',
+    borderWidth: 1,
+    borderColor: '#FFE4CC',
   },
   actionButtonText: {
-    color: '#FFFFFF',
+    color: '#FF6B00',
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
 
   // Empty State
@@ -648,33 +738,47 @@ const styles = StyleSheet.create({
   emptyIcon: {
     width: 80,
     height: 80,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFF4E6',
     borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFE4CC',
+  },
+  emptyIconText: {
+    fontSize: 32,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '400',
     color: '#1A1A1A',
     marginBottom: 8,
+    letterSpacing: 0.2,
   },
   emptyMessage: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
+    lineHeight: 18,
+    fontWeight: '300',
   },
   emptyAction: {
     backgroundColor: '#FF6B00',
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 8,
+    elevation: 2,
+    shadowColor: '#FF6B00',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   emptyActionText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
 });
