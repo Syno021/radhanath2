@@ -162,9 +162,51 @@ export default function AdminBooks() {
     );
   };
 
+  const renderListHeader = () => {
+    return (
+      <>
+        <Text style={styles.sectionTitle}>Explore Regions</Text>
+        <Text style={styles.sectionSubtitle}>
+          Discover temples and reading clubs in different regions
+        </Text>
+      </>
+    );
+  };
+
+  const renderLoadingOrContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FF6B00" />
+          <Text style={styles.loadingText}>Loading regions...</Text>
+        </View>
+      );
+    }
+
+    return (
+      <FlatList
+        ref={flatListRef}
+        data={filteredRegions}
+        keyExtractor={(item) => item.id}
+        renderItem={renderRegionCard}
+        numColumns={2}
+        columnWrapperStyle={filteredRegions.length > 0 ? styles.exploreGrid : null}
+        contentContainerStyle={styles.flatListContent}
+        ListHeaderComponent={renderListHeader}
+        ListEmptyComponent={renderEmptyComponent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#10B981']} />
+        }
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={true}
+      />
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* Fixed Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.greeting}>Welcome back</Text>
@@ -183,7 +225,7 @@ export default function AdminBooks() {
         </View>
       </View>
 
-      {/* Search Section */}
+      {/* Fixed Search Section */}
       <View style={styles.quickActionsContainer}>
         <View style={styles.searchInputContainer}>
           <Ionicons name="search-outline" size={20} color="#666" style={styles.searchIcon} />
@@ -224,7 +266,7 @@ export default function AdminBooks() {
         </View>
       </View>
 
-      {/* Search Results Info */}
+      {/* Fixed Search Results Info */}
       {searchTerm.trim() && (
         <View style={styles.resultsInfo}>
           <Text style={styles.resultsText}>
@@ -233,37 +275,9 @@ export default function AdminBooks() {
         </View>
       )}
 
-      {/* Content */}
-      <View style={styles.scrollView}>
-        <View style={styles.scrollContent}>
-          <Text style={styles.sectionTitle}>Explore Regions</Text>
-          <Text style={styles.sectionSubtitle}>
-            Discover temples and reading clubs in different regions
-          </Text>
-
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#FF6B00" />
-              <Text style={styles.loadingText}>Loading regions...</Text>
-            </View>
-          ) : (
-            <FlatList
-              ref={flatListRef}
-              data={filteredRegions}
-              keyExtractor={(item) => item.id}
-              renderItem={renderRegionCard}
-              numColumns={2}
-              columnWrapperStyle={styles.exploreGrid}
-              contentContainerStyle={{ paddingBottom: 20 }}
-              ListEmptyComponent={renderEmptyComponent}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#10B981']} />
-              }
-              onScroll={handleScroll}
-              scrollEventThrottle={16}
-            />
-          )}
-        </View>
+      {/* Scrollable Content Area */}
+      <View style={styles.scrollableContent}>
+        {renderLoadingOrContent()}
       </View>
 
       {/* Scroll to Top Button */}
@@ -282,7 +296,7 @@ const styles = {
     backgroundColor: '#FDFCFA',
   },
   
-  // Header Styles
+  // Header Styles (Fixed)
   header: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
@@ -353,7 +367,7 @@ const styles = {
     fontWeight: '700' as const,
   },
 
-  // Quick Actions (Search Section)
+  // Fixed Search Section
   quickActionsContainer: {
     paddingVertical: 16,
     paddingHorizontal: 16,
@@ -431,7 +445,7 @@ const styles = {
     fontWeight: '600' as const,
   },
 
-  // Results Info
+  // Fixed Results Info
   resultsInfo: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
@@ -446,13 +460,15 @@ const styles = {
     fontWeight: '500' as const,
   },
 
-  // Content Styles
-  scrollView: {
+  // Scrollable Content Area
+  scrollableContent: {
     flex: 1,
   },
-  scrollContent: {
+
+  // FlatList Content Styles
+  flatListContent: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 100, // Extra padding at bottom for scroll to top button
   },
   sectionTitle: {
     fontSize: 20,
@@ -564,6 +580,8 @@ const styles = {
   loadingContainer: {
     alignItems: 'center' as const,
     paddingVertical: 40,
+    flex: 1,
+    justifyContent: 'center' as const,
   },
   loadingText: {
     marginTop: 12,
@@ -596,49 +614,6 @@ const styles = {
     color: 'white',
     fontSize: 14,
     fontWeight: '600' as const,
-  },
-
-  // Stats Section
-  statsSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FDFCFA',
-    borderTopWidth: 1,
-    borderTopColor: '#E8F5E8',
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-    color: '#1A1A1A',
-    marginBottom: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row' as const,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center' as const,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: '700' as const,
-    color: '#FF6B00',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500' as const,
-    textAlign: 'center' as const,
   },
 
   // Scroll to Top Button

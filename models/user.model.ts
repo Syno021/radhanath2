@@ -1,4 +1,4 @@
-//src/app/shared/core/models/user.model.ts
+//models/user.model.ts
 export interface User {
   uid: string;
   email: string;

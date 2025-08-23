@@ -171,13 +171,6 @@ export default function TempleScreen() {
         </View>
       </View>
 
-      {/* Results Info */}
-      <View style={styles.resultsInfo}>
-        <Text style={styles.resultsText}>
-          Showing {filteredTemples.length} of {temples.length} temples
-        </Text>
-      </View>
-
       {/* Error */}
       {error && (
         <View style={styles.emptyContainer}>
@@ -198,11 +191,6 @@ export default function TempleScreen() {
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>Explore Temples</Text>
-        <Text style={styles.sectionSubtitle}>
-          Discover sacred spaces and their rich histories across different regions.
-        </Text>
-
         <View style={styles.exploreGrid}>
           {filteredTemples.map((temple: Temple, index: number) => (
             <TouchableOpacity key={temple.id} style={styles.exploreCard} activeOpacity={0.8}>

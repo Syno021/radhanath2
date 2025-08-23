@@ -5,7 +5,10 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ExploreStackParamList } from '../app/navigation/ExploreStack';
 import { collection, onSnapshot, getCountFromServer } from 'firebase/firestore';
-import { db } from '../firebaseCo';
+import { db, auth } from '../firebaseCo';
+import ProfileService from '../services/userService'; // Import the user service
+import { User } from '../models/user.model'; // Import User type
+import { User as FirebaseUser } from 'firebase/auth'; // Import Firebase User type
 
 type ExploreNavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'Explore'>;
 
@@ -37,7 +40,11 @@ export default function Explore() {
   const navigation = useNavigation<ExploreNavigationProp>();
   const { width } = useWindowDimensions();
   const isTablet = width > 768;
-  const userInitials = 'JD';
+
+  // User state
+  const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+  const [userData, setUserData] = useState<User | null>(null);
+  const [userInitials, setUserInitials] = useState<string>('');
 
   const [stats, setStats] = useState<FirebaseStats>({
     users: 0,
@@ -49,6 +56,75 @@ export default function Explore() {
     bookReports: 0,
     loading: true,
   });
+
+  // Function to generate initials from user data
+  const generateInitials = (user: User | null, firebaseUser: FirebaseUser | null): string => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+    } else if (user?.displayName) {
+      const names = user.displayName.split(' ');
+      if (names.length >= 2) {
+        return `${names[0].charAt(0)}${names[1].charAt(0)}`.toUpperCase();
+      }
+      return names[0].charAt(0).toUpperCase();
+    } else if (firebaseUser?.displayName) {
+      const names = firebaseUser.displayName.split(' ');
+      if (names.length >= 2) {
+        return `${names[0].charAt(0)}${names[1].charAt(0)}`.toUpperCase();
+      }
+      return names[0].charAt(0).toUpperCase();
+    } else if (firebaseUser?.email) {
+      return firebaseUser.email.charAt(0).toUpperCase();
+    }
+    return 'U'; // Default fallback
+  };
+
+  // Set up user authentication and data listeners
+  useEffect(() => {
+    // Subscribe to authentication state changes
+    const unsubscribeAuth = ProfileService.subscribeToAuth((firebaseUser) => {
+      setCurrentUser(firebaseUser);
+      
+      if (firebaseUser) {
+        // Update last active when user is authenticated
+        ProfileService.updateLastActive(firebaseUser.uid).catch(console.error);
+      } else {
+        setUserData(null);
+        setUserInitials('U');
+      }
+    });
+
+    return unsubscribeAuth;
+  }, []);
+
+  // Subscribe to user data when currentUser changes
+  useEffect(() => {
+    let unsubscribeUserData: (() => void) | null = null;
+
+    if (currentUser) {
+      // Subscribe to real-time user data updates
+      unsubscribeUserData = ProfileService.subscribeToUserData(
+        currentUser.uid,
+        (user) => {
+          setUserData(user);
+          const initials = generateInitials(user, currentUser);
+          setUserInitials(initials);
+        },
+        (error) => {
+          console.error('Error fetching user data:', error);
+          // Fallback to Firebase Auth data
+          const initials = generateInitials(null, currentUser);
+          setUserInitials(initials);
+        }
+      );
+    }
+
+    return () => {
+      if (unsubscribeUserData) {
+        unsubscribeUserData();
+      }
+    };
+  }, [currentUser]);
 
   // Fetch real-time statistics from Firestore
   useEffect(() => {
@@ -226,6 +302,18 @@ export default function Explore() {
   const totalCommunityItems = stats.books + stats.regions + stats.whatsappGroups + stats.readingClubs + stats.temples;
   const avgBooksPerUser = stats.users > 0 ? Math.round(stats.bookReports / stats.users) : 0;
 
+  // Get display name for greeting
+  const getDisplayName = (): string => {
+    if (userData?.firstName) {
+      return userData.firstName;
+    } else if (userData?.displayName) {
+      return userData.displayName.split(' ')[0];
+    } else if (currentUser?.displayName) {
+      return currentUser.displayName.split(' ')[0];
+    }
+    return 'Devotee';
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FDFCFA" />
@@ -233,7 +321,7 @@ export default function Explore() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.greeting}>Hare Krishna</Text>
+          <Text style={styles.greeting}>Hare Krishna {getDisplayName()}</Text>
           <Text style={styles.headerTitle}>Explore Spiritual Journey</Text>
         </View>
         <TouchableOpacity style={styles.profileButton}>

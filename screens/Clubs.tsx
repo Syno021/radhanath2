@@ -246,24 +246,6 @@ export default function ReadingClubsScreen() {
         </View>
       </View>
 
-      {/* Results Info */}
-      <View style={styles.resultsInfo}>
-        <Text style={styles.resultsText}>
-          {searchTerm.trim() ? 
-            `Found ${filteredClubs.length} club${filteredClubs.length !== 1 ? 's' : ''} for "${searchTerm}"` :
-            `Showing all ${clubs.length} reading clubs`
-          }
-        </Text>
-      </View>
-
-      {/* Section Header */}
-      <View style={styles.sectionHeaderContainer}>
-        <Text style={styles.sectionTitle}>Explore Reading Clubs</Text>
-        <Text style={styles.sectionSubtitle}>
-          Join a community of readers and discover your next favorite book together.
-        </Text>
-      </View>
-
       {/* Clubs Grid */}
       <FlatList
         ref={flatListRef}
