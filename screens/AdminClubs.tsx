@@ -24,6 +24,7 @@ import {
   getJoinRequestDetails, // You'll need to add this to your service
 } from '../services/ReadingClubService';
 import { ReadingClub } from '../models/ReadingClub.model';
+import GuideOverlay from '../components/GuideOverlay';
 
 interface Region {
   id: string;
@@ -71,6 +72,30 @@ const AdminClubs: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredClubs, setFilteredClubs] = useState<ReadingClub[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
+
+  const guideSteps = [
+    {
+      title: "Add Reading Club",
+      description: "Create a new reading club by filling in the required details like name, description, and meeting schedule.",
+      icon: "add-circle-outline"
+    },
+    {
+      title: "Manage Schedule",
+      description: "Set meeting days, times, and frequency. Choose between online, in-person, or hybrid formats.",
+      icon: "calendar-outline"
+    },
+    {
+      title: "Set Location",
+      description: "For in-person meetings, specify the address and coordinates. For online meetings, add virtual meeting details.",
+      icon: "location-outline"
+    },
+    {
+      title: "Assign Facilitator",
+      description: "Add facilitator details including name and contact information to manage the club.",
+      icon: "person-outline"
+    }
+  ];
 
   // Join Requests Modal State
   const [showJoinRequestsModal, setShowJoinRequestsModal] = useState(false);
@@ -382,10 +407,25 @@ const AdminClubs: React.FC = () => {
           <Text style={styles.headerTitle}>Reading Clubs</Text>
           <Text style={styles.headerSubtitle}>BBT Africa Connect - Admin</Text>
         </View>
-        <View style={styles.headerIcon}>
-          <Ionicons name="book-outline" size={24} color="#FF6B00" />
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.helpButton}
+            onPress={() => setShowGuide(true)}
+          >
+            <Ionicons name="help-circle-outline" size={24} color="#FF6B00" />
+          </TouchableOpacity>
+          <View style={styles.headerIcon}>
+            <Ionicons name="book-outline" size={24} color="#FF6B00" />
+          </View>
         </View>
       </View>
+
+      <GuideOverlay
+        visible={showGuide}
+        onClose={() => setShowGuide(false)}
+        steps={guideSteps}
+        screenName="Reading Club Management"
+      />
 
       <ScrollView 
         ref={scrollViewRef}
@@ -795,6 +835,13 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 22, fontWeight: '600', color: '#FF6B00' },
   headerSubtitle: { fontSize: 12, color: '#999' },
   headerIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF4E6', justifyContent: 'center', alignItems: 'center' },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  helpButton: {
+    marginRight: 16,
+  },
   content: { flex: 1, paddingHorizontal: 24 },
   section: {
     backgroundColor: '#FFF', borderRadius: 12, padding: 20, marginBottom: 16,

@@ -8,6 +8,7 @@ import { User } from "../models/user.model";
 import UserService from "../services/userService";
 import { Platform, Dimensions } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
+import GuideOverlay from '../components/GuideOverlay';
 
 const AdminUsers: React.FC = () => {
   const scrollViewRef = useRef<ScrollView>(null);
@@ -41,6 +42,30 @@ const AdminUsers: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<{ [key: string]: User["role"] }>({});
   const [isMobile, setIsMobile] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
+
+  const guideSteps = [
+    {
+      title: "Search Users",
+      description: "Find users by name or email. Use the search filters to narrow down results.",
+      icon: "search-outline"
+    },
+    {
+      title: "Manage Roles",
+      description: "Assign or change user roles between User, Facilitator, and Admin levels.",
+      icon: "people-outline"
+    },
+    {
+      title: "User Actions",
+      description: "Perform actions like suspending users or updating their information.",
+      icon: "settings-outline"
+    },
+    {
+      title: "View Details",
+      description: "Check user activity, associated clubs, and participation history.",
+      icon: "information-circle-outline"
+    }
+  ];
 
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -200,18 +225,33 @@ const AdminUsers: React.FC = () => {
             <Text style={styles.headerTitle}>User Management</Text>
             <Text style={styles.headerSubtitle}>Manage community members</Text>
           </View>
-          <View style={styles.headerStats}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{users.length}</Text>
-              <Text style={styles.statLabel}>Total Users</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{filteredUsers.length}</Text>
-              <Text style={styles.statLabel}>Filtered</Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.helpButton}
+              onPress={() => setShowGuide(true)}
+            >
+              <Ionicons name="help-circle-outline" size={24} color="#FF6B00" />
+            </TouchableOpacity>
+            <View style={styles.headerStats}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{users.length}</Text>
+                <Text style={styles.statLabel}>Total Users</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{filteredUsers.length}</Text>
+                <Text style={styles.statLabel}>Filtered</Text>
+              </View>
             </View>
           </View>
         </View>
       </View>
+
+      <GuideOverlay
+        visible={showGuide}
+        onClose={() => setShowGuide(false)}
+        steps={guideSteps}
+        screenName="User Management"
+      />
 
       {/* Search Section */}
       <View style={styles.searchSection}>
@@ -464,6 +504,18 @@ const styles = {
     fontSize: 14,
     color: '#666',
     marginTop: 4,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  helpButton: {
+    padding: 8,
+    borderRadius: 24,
+    backgroundColor: '#FFF4E6',
+    borderWidth: 1,
+    borderColor: '#FF8800',
   },
   headerStats: {
     flexDirection: 'row',

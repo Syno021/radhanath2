@@ -21,6 +21,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { generateBookId } from '../utils/idGenerator';
+import GuideOverlay from '../components/GuideOverlay';
 
 interface Book {
   id: string;
@@ -85,6 +86,7 @@ export default function AdminAddBooks() {
     bbtMediaLink: '',
     rating: 5,
   });
+  const [showGuide, setShowGuide] = useState(false);
 
   // Fetch books from Firestore
   useEffect(() => {
@@ -400,6 +402,29 @@ export default function AdminAddBooks() {
     </View>
   );
 
+  const guideSteps = [
+    {
+      title: "Add Books Manually",
+      description: "Fill in the book details form to add a single book. Required fields are marked with an asterisk (*).",
+      icon: "create-outline"
+    },
+    {
+      title: "Book Categories",
+      description: "Choose from categories like Scripture, Commentary, Biography, Philosophy, or Other to organize books.",
+      icon: "list-outline"
+    },
+    {
+      title: "Bulk Upload",
+      description: "For adding multiple books, download the template, fill it with your data, and upload the file.",
+      icon: "cloud-upload-outline"
+    },
+    {
+      title: "Manage Books",
+      description: "View all added books below. You can edit or delete books using the action buttons.",
+      icon: "library-outline"
+    }
+  ];
+
   return (
     <View style={styles.container}>
       
@@ -411,7 +436,20 @@ export default function AdminAddBooks() {
           <Text style={styles.headerText}>Add Sacred Books</Text>
           <Text style={styles.headerSubtext}>BBT Books Collection</Text>
         </View>
+        <TouchableOpacity 
+          style={styles.helpButton}
+          onPress={() => setShowGuide(true)}
+        >
+          <Ionicons name="help-circle-outline" size={24} color="#FF6B00" />
+        </TouchableOpacity>
       </View>
+
+      <GuideOverlay
+        visible={showGuide}
+        onClose={() => setShowGuide(false)}
+        steps={guideSteps}
+        screenName="Book Management"
+      />
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Manual Entry Section */}
@@ -1134,5 +1172,8 @@ guideStep: {
     fontSize: 12,
     color: '#999',
     fontWeight: '400',
+  },
+  helpButton: {
+    padding: 4,
   },
 });

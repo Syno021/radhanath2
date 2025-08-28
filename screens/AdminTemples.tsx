@@ -19,6 +19,7 @@ import {
 // import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import TempleService, { Temple, Region, TempleInput } from '../services/TempleService';
+import GuideOverlay from '../components/GuideOverlay';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -44,6 +45,30 @@ const AdminTemples: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredTemples, setFilteredTemples] = useState<Temple[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [showGuide, setShowGuide] = useState(false);
+
+  const guideSteps = [
+    {
+      title: "Add Temple",
+      description: "Add a new temple by providing its name, description, and location details.",
+      icon: "add-circle-outline"
+    },
+    {
+      title: "Upload Images",
+      description: "Upload temple photos to help devotees recognize the temple.",
+      icon: "camera-outline"
+    },
+    {
+      title: "Assign Region",
+      description: "Connect temples to specific regions for better organization.",
+      icon: "map-outline"
+    },
+    {
+      title: "Manage Temples",
+      description: "Edit or remove temples, and keep their information up to date.",
+      icon: "business-outline"
+    }
+  ];
 
   useEffect(() => {
     loadInitialData();
@@ -218,10 +243,25 @@ const AdminTemples: React.FC = () => {
           <Text style={styles.headerTitle}>Temples</Text>
           <Text style={styles.headerSubtitle}>BBT Africa Connect - Admin</Text>
         </View>
-        <View style={styles.headerIcon}>
-          <Ionicons name="business-outline" size={24} color="#FF6B00" />
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.helpButton}
+            onPress={() => setShowGuide(true)}
+          >
+            <Ionicons name="help-circle-outline" size={24} color="#FF6B00" />
+          </TouchableOpacity>
+          <View style={styles.headerIcon}>
+            <Ionicons name="business-outline" size={24} color="#FF6B00" />
+          </View>
         </View>
       </View>
+
+      <GuideOverlay
+        visible={showGuide}
+        onClose={() => setShowGuide(false)}
+        steps={guideSteps}
+        screenName="Temple Management"
+      />
 
       <ScrollView
         ref={scrollViewRef}

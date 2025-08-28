@@ -23,6 +23,7 @@ import {
 import { WhatsappGroup } from '../models/whatsappGroup.model';
 import { collection, getDocs, doc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { db } from '../firebaseCo';
+import GuideOverlay from '../components/GuideOverlay';
 
 // Define default form state
 const defaultFormState: Omit<WhatsappGroup, 'id'> = {
@@ -55,6 +56,30 @@ const AdminGroups: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredGroups, setFilteredGroups] = useState<WhatsappGroup[]>([]);
+  const [showGuide, setShowGuide] = useState(false);
+
+  const guideSteps = [
+    {
+      title: "Create WhatsApp Group",
+      description: "Add new WhatsApp groups by entering the group name, description, and invite link.",
+      icon: "add-circle-outline"
+    },
+    {
+      title: "Manage Regions",
+      description: "Assign groups to specific regions to help devotees find local communities.",
+      icon: "map-outline"
+    },
+    {
+      title: "Group Types",
+      description: "Categorize groups as General, Book Study, Events, or Seva for better organization.",
+      icon: "list-outline"
+    },
+    {
+      title: "Monitor Activity",
+      description: "Track member counts and manage group information to keep everything up to date.",
+      icon: "stats-chart-outline"
+    }
+  ];
 
   useEffect(() => {
     fetchGroups();
@@ -269,10 +294,25 @@ const AdminGroups: React.FC = () => {
           <Text style={styles.headerTitle}>WhatsApp Groups</Text>
           <Text style={styles.headerSubtitle}>BBT Africa Connect - Admin</Text>
         </View>
-        <View style={styles.headerIcon}>
-          <Ionicons name="chatbubbles-outline" size={24} color="#FF6B00" />
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.helpButton}
+            onPress={() => setShowGuide(true)}
+          >
+            <Ionicons name="help-circle-outline" size={24} color="#FF6B00" />
+          </TouchableOpacity>
+          <View style={styles.headerIcon}>
+            <Ionicons name="chatbubbles-outline" size={24} color="#FF6B00" />
+          </View>
         </View>
       </View>
+
+      <GuideOverlay
+        visible={showGuide}
+        onClose={() => setShowGuide(false)}
+        steps={guideSteps}
+        screenName="WhatsApp Group Management"
+      />
 
       <ScrollView
         ref={scrollViewRef}
@@ -618,6 +658,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  helpButton: {
+    marginRight: 16,
   },
   content: {
     flex: 1,
