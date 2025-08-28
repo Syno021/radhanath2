@@ -19,14 +19,47 @@ import {
   deleteReadingClub,
   getReadingClubs,
   getRegions,
+  getBooks,
+  getWhatsAppGroups,
   approveJoinRequest,
-  rejectJoinRequest, // You'll need to add this to your service
-  getJoinRequestDetails, // You'll need to add this to your service
+  rejectJoinRequest,
+  getJoinRequestDetails,
 } from '../services/ReadingClubService';
 import { ReadingClub } from '../models/ReadingClub.model';
 import GuideOverlay from '../components/GuideOverlay';
 
 interface Region {
+  id: string;
+  name: string;
+}
+
+interface UIBook {
+  id: string;
+  title: string;
+  author: string;
+  image?: string;
+  description?: string;
+  pages?: number;
+  publishYear?: number;
+  vedabaseLink?: string;
+  rating?: number;
+  tags?: string[];
+  category?: string;
+  isFavorite?: boolean;
+  addedDate?: Date;
+  updatedDate?: Date;
+  language?: string;
+  translations?: string[];
+  fileSizeMB?: number;
+  format?: 'PDF' | 'EPUB' | 'HTML' | 'Scan';
+  audioAvailable?: boolean;
+  viewCount?: number;
+  downloadCount?: number;
+  bookmarkedPage?: number;
+  commentsEnabled?: boolean;
+}
+
+interface UIWhatsappGroup {
   id: string;
   name: string;
 }
@@ -44,7 +77,8 @@ const defaultFormState: Omit<ReadingClub, 'id' | 'createdAt' | 'updatedAt'> = {
   meetingType: 'online',
   location: { address: '', latitude: 0, longitude: 0 },
   schedule: { day: '', time: '', frequency: 'weekly' },
-  currentBook: '',
+  currentBookId: '', // Updated field name
+  groupIds: [], // Updated to array
   regionId: '',
   facilitator: { name: '', contact: '' },
   members: [],
@@ -67,6 +101,8 @@ const AdminClubs: React.FC = () => {
 
   const [clubs, setClubs] = useState<ReadingClub[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
+  const [books, setBooks] = useState<UIBook[]>([]);
+  const [whatsappGroups, setWhatsappGroups] = useState<UIWhatsappGroup[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -79,6 +115,11 @@ const AdminClubs: React.FC = () => {
       title: "Add Reading Club",
       description: "Create a new reading club by filling in the required details like name, description, and meeting schedule.",
       icon: "add-circle-outline"
+    },
+    {
+      title: "Select Book & Group",
+      description: "Choose the current book being read and associate a WhatsApp group for club communications.",
+      icon: "book-outline"
     },
     {
       title: "Manage Schedule",
@@ -107,6 +148,8 @@ const AdminClubs: React.FC = () => {
   useEffect(() => {
     loadClubs();
     loadRegions();
+    loadBooks();
+    loadWhatsAppGroups();
   }, []);
 
   useEffect(() => {
@@ -131,7 +174,7 @@ const AdminClubs: React.FC = () => {
       (club) =>
         club.name.toLowerCase().includes(term) ||
         club.description.toLowerCase().includes(term) ||
-        club.currentBook?.toLowerCase().includes(term) ||
+        club.currentBookId?.toLowerCase().includes(term) ||
         club.facilitator.name.toLowerCase().includes(term)
     );
     setFilteredClubs(results);
@@ -159,11 +202,90 @@ const AdminClubs: React.FC = () => {
     }
   };
 
+  const loadBooks = async () => {
+    try {
+      const data = await getBooks();
+      const uiBooks: UIBook[] = (data as any[]).map((b: any) => ({
+        id: String(b.id ?? ''),
+        title: String(b.title ?? ''),
+        author: String(b.author ?? ''),
+        image: b.image ?? undefined,
+        description: b.description ?? undefined,
+        pages: typeof b.pages === 'number' ? b.pages : undefined,
+        publishYear: typeof b.publishYear === 'number' ? b.publishYear : undefined,
+        vedabaseLink: b.vedabaseLink ?? undefined,
+        rating: typeof b.rating === 'number' ? b.rating : undefined,
+        tags: Array.isArray(b.tags) ? b.tags : undefined,
+        category: b.category ?? undefined,
+        isFavorite: typeof b.isFavorite === 'boolean' ? b.isFavorite : undefined,
+        addedDate: b.addedDate ?? undefined,
+        updatedDate: b.updatedDate ?? undefined,
+        language: b.language ?? undefined,
+        translations: Array.isArray(b.translations) ? b.translations : undefined,
+        fileSizeMB: typeof b.fileSizeMB === 'number' ? b.fileSizeMB : undefined,
+        format: b.format ?? undefined,
+        audioAvailable: typeof b.audioAvailable === 'boolean' ? b.audioAvailable : undefined,
+        viewCount: typeof b.viewCount === 'number' ? b.viewCount : undefined,
+        downloadCount: typeof b.downloadCount === 'number' ? b.downloadCount : undefined,
+        bookmarkedPage: typeof b.bookmarkedPage === 'number' ? b.bookmarkedPage : undefined,
+        commentsEnabled: typeof b.commentsEnabled === 'boolean' ? b.commentsEnabled : undefined,
+      }));
+      setBooks(uiBooks);
+    } catch (err) {
+      console.error('Error loading books:', err);
+    }
+  };
+
+  const loadWhatsAppGroups = async () => {
+    try {
+      const data = await getWhatsAppGroups();
+      const uiGroups: UIWhatsappGroup[] = (data as any[]).map((g: any) => ({
+        id: String(g.id ?? ''),
+        name: String(g.name ?? ''),
+      }));
+      setWhatsappGroups(uiGroups);
+    } catch (err) {
+      console.error('Error loading WhatsApp groups:', err);
+    }
+  };
+
   const handleChange = (name: string, value: string) => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
+  };
+
+  // Handle book selection
+  const handleBookChange = (bookId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      currentBookId: bookId,
+    }));
+  };
+
+  // Handle group selection (multiple groups)
+  const handleGroupChange = (groupId: string) => {
+    if (!groupId) return;
+    
+    setFormData((prev) => {
+      const currentGroupIds = prev.groupIds || [];
+      const isAlreadySelected = currentGroupIds.includes(groupId);
+      
+      if (isAlreadySelected) {
+        // Remove if already selected
+        return {
+          ...prev,
+          groupIds: currentGroupIds.filter(id => id !== groupId),
+        };
+      } else {
+        // Add to selection
+        return {
+          ...prev,
+          groupIds: [...currentGroupIds, groupId],
+        };
+      }
+    });
   };
 
   const handleLocationChange = (name: string, value: string) => {
@@ -293,7 +415,6 @@ const AdminClubs: React.FC = () => {
     setLoadingRequests(true);
 
     try {
-      // Fetch detailed information for each join request
       const requestDetails = await getJoinRequestDetails(club.joinRequests);
       setJoinRequests(requestDetails);
     } catch (err) {
@@ -320,15 +441,11 @@ const AdminClubs: React.FC = () => {
               setProcessingRequest(userId);
               await approveJoinRequest(selectedClub.id, userId);
               
-              // Update local state
               setJoinRequests(prev => prev.filter(req => req.userId !== userId));
-              
-              // Reload clubs to get updated member count
               await loadClubs();
               
               Alert.alert('Success', `${userName} has been approved and added to the club!`);
               
-              // Close modal if no more requests
               if (joinRequests.length === 1) {
                 setShowJoinRequestsModal(false);
               }
@@ -360,15 +477,11 @@ const AdminClubs: React.FC = () => {
               setProcessingRequest(userId);
               await rejectJoinRequest(selectedClub.id, userId);
               
-              // Update local state
               setJoinRequests(prev => prev.filter(req => req.userId !== userId));
-              
-              // Reload clubs to get updated counts
               await loadClubs();
               
               Alert.alert('Success', `${userName}'s request has been rejected.`);
               
-              // Close modal if no more requests
               if (joinRequests.length === 1) {
                 setShowJoinRequestsModal(false);
               }
@@ -384,7 +497,32 @@ const AdminClubs: React.FC = () => {
     );
   };
 
-  const pickerContainer = (
+  // Helper function to get book title by ID
+  const getBookTitleById = (bookId: string) => {
+    const book = books.find(b => b.id === bookId);
+    return book ? `${book.title} by ${book.author}` : 'Unknown Book';
+  };
+
+  // Helper function to get group names by IDs
+  const getGroupNamesByIds = (groupIds: string[]) => {
+    if (!groupIds || groupIds.length === 0) return 'No groups assigned';
+    
+    const groupNames = groupIds
+      .map(id => {
+        const group = whatsappGroups.find(g => g.id === id);
+        return group ? group.name : 'Unknown Group';
+      })
+      .join(', ');
+    
+    return groupNames || 'No groups assigned';
+  };
+
+  // Helper function to check if a group is selected
+  const isGroupSelected = (groupId: string) => {
+    return formData.groupIds?.includes(groupId) || false;
+  };
+
+  const regionPicker = (
     <View style={styles.pickerContainer}>
       <Picker
         selectedValue={formData.regionId}
@@ -396,6 +534,69 @@ const AdminClubs: React.FC = () => {
           <Picker.Item key={r.id} label={r.name} value={r.id} />
         ))}
       </Picker>
+    </View>
+  );
+
+  const bookPicker = (
+    <View style={styles.pickerContainer}>
+      <Picker
+        selectedValue={formData.currentBookId}
+        onValueChange={handleBookChange}
+        style={styles.picker}
+      >
+        <Picker.Item label="Select Current Book" value="" />
+        {books.map((book) => (
+          <Picker.Item 
+            key={book.id} 
+            label={`${book.title} by ${book.author}`} 
+            value={book.id} 
+          />
+        ))}
+      </Picker>
+    </View>
+  );
+
+  const groupPicker = (
+    <View style={styles.inputGroup}>
+      <Text style={styles.label}>WhatsApp Groups (Select Multiple)</Text>
+      <ScrollView style={{ maxHeight: 150, borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 8 }}>
+        {whatsappGroups.map((group) => (
+          <TouchableOpacity 
+            key={group.id}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 8,
+              paddingHorizontal: 4,
+              backgroundColor: isGroupSelected(group.id) ? '#FFF5E6' : 'transparent',
+              borderRadius: 4,
+              marginBottom: 4,
+            }}
+            onPress={() => handleGroupChange(group.id)}
+          >
+            <Ionicons 
+              name={isGroupSelected(group.id) ? "checkbox" : "checkbox-outline"} 
+              size={20} 
+              color={isGroupSelected(group.id) ? "#FF6B00" : "#999"} 
+            />
+            <View style={{ marginLeft: 8, flex: 1 }}>
+              <Text style={{ 
+                fontSize: 14, 
+                fontWeight: isGroupSelected(group.id) ? 'bold' : 'normal',
+                color: isGroupSelected(group.id) ? "#FF6B00" : "#333"
+              }}>
+                {group.name}
+              </Text>
+              {/* Only show group name; other details intentionally omitted */}
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      {formData.groupIds && formData.groupIds.length > 0 && (
+        <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+          Selected: {formData.groupIds.length} group(s)
+        </Text>
+      )}
     </View>
   );
 
@@ -528,6 +729,13 @@ const AdminClubs: React.FC = () => {
             </View>
 
             <View style={styles.inputGroup}>
+              <Text style={styles.label}>Current Book *</Text>
+              {bookPicker}
+            </View>
+
+            {groupPicker}
+
+            <View style={styles.inputGroup}>
               <Text style={styles.label}>Location Address</Text>
               <TextInput
                 style={styles.input}
@@ -597,18 +805,8 @@ const AdminClubs: React.FC = () => {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Current Book</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.currentBook}
-                onChangeText={(t) => handleChange('currentBook', t)}
-                placeholder="Enter current book title"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
               <Text style={styles.label}>Region *</Text>
-              {pickerContainer}
+              {regionPicker}
             </View>
 
             <View style={styles.inputGroup}>
@@ -690,8 +888,13 @@ const AdminClubs: React.FC = () => {
                 
                 <View style={styles.groupInfo}>
                   <Text style={styles.groupInfoItem}>
-                    📖 Book: {club.currentBook || 'Not specified'}
+                    📖 Book: {club.currentBookId ? getBookTitleById(club.currentBookId) : 'Not specified'}
                   </Text>
+                  {club.groupIds && club.groupIds.length > 0 && (
+                    <Text style={styles.groupInfoItem}>
+                      💬 Groups: {getGroupNamesByIds(club.groupIds)}
+                    </Text>
+                  )}
                   <Text style={styles.groupInfoItem}>
                     👤 Facilitator: {club.facilitator.name} ({club.facilitator.contact})
                   </Text>
@@ -825,6 +1028,8 @@ const AdminClubs: React.FC = () => {
     </View>
   );
 };
+
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FDFCFA' },

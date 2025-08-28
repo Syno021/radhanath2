@@ -13,8 +13,9 @@ export interface ReadingClub {
     time: string;
     frequency: 'weekly' | 'biweekly' | 'monthly';
   };
-  currentBook?: string;
+  currentBookId?: string; // Changed from currentBook to currentBookId (Book ID)
   regionId: string;
+  groupIds: string[]; // Changed from group to groupIds (WhatsApp Group IDs array)
   facilitator: {
     name: string;
     contact: string;

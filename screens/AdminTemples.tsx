@@ -16,7 +16,7 @@ import {
   FlatList,
 } from 'react-native';
 // Remove the old Picker import
-// import { Picker } from '@react-native-picker/picker';
+import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import TempleService, { Temple, Region, TempleInput } from '../services/TempleService';
 import GuideOverlay from '../components/GuideOverlay';
@@ -243,9 +243,9 @@ const AdminTemples: React.FC = () => {
           <Text style={styles.headerTitle}>Temples</Text>
           <Text style={styles.headerSubtitle}>BBT Africa Connect - Admin</Text>
         </View>
-        <View style={styles.headerActions}>
+        <View >
           <TouchableOpacity 
-            style={styles.helpButton}
+            
             onPress={() => setShowGuide(true)}
           >
             <Ionicons name="help-circle-outline" size={24} color="#FF6B00" />
