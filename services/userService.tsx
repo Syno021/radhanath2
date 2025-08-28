@@ -6,6 +6,8 @@ import {
   onSnapshot,
   updateDoc,
   serverTimestamp,
+  arrayUnion,
+  arrayRemove,
 } from "firebase/firestore";
 import {
   onAuthStateChanged,
@@ -300,6 +302,191 @@ const ProfileService = {
   /** Remove book interest from existing interests */
   removeBookInterest: (currentInterests: string[], interestToRemove: string): string[] => {
     return currentInterests.filter(interest => interest !== interestToRemove);
+  },
+
+  // ==========================================
+  // WHATSAPP GROUPS MANAGEMENT FUNCTIONS
+  // ==========================================
+
+  /** 
+   * Get the current authenticated user's ID
+   * @returns User ID or null if not authenticated
+   */
+  getCurrentUserId: (): string | null => {
+    return auth.currentUser?.uid || null;
+  },
+
+  /**
+   * Update the current user's joinedGroups array by adding a group ID
+   * @param groupId - The WhatsApp group ID to add to the user's joinedGroups array
+   */
+  updateUserJoinedGroups: async (groupId: string): Promise<void> => {
+    const userId = ProfileService.getCurrentUserId();
+    
+    if (!userId) {
+      throw new Error('No authenticated user found');
+    }
+
+    try {
+      const userRef = doc(db, "users", userId);
+      
+      // Update the user document to add the group ID to joinedGroups array
+      // arrayUnion ensures no duplicates are added
+      await updateDoc(userRef, {
+        joinedGroups: arrayUnion(groupId),
+        lastActive: serverTimestamp() // Update last active timestamp
+      });
+      
+      console.log(`Successfully added group ${groupId} to user ${userId}'s joinedGroups`);
+    } catch (error) {
+      console.error('Error updating user joined groups:', error);
+      throw new Error('Failed to update user profile');
+    }
+  },
+
+  /**
+   * Remove a group from the current user's joinedGroups array
+   * @param groupId - The WhatsApp group ID to remove from the user's joinedGroups array
+   */
+  removeUserFromGroup: async (groupId: string): Promise<void> => {
+    const userId = ProfileService.getCurrentUserId();
+    
+    if (!userId) {
+      throw new Error('No authenticated user found');
+    }
+
+    try {
+      const userRef = doc(db, "users", userId);
+      
+      // Remove the group ID from joinedGroups array
+      await updateDoc(userRef, {
+        joinedGroups: arrayRemove(groupId),
+        lastActive: serverTimestamp()
+      });
+      
+      console.log(`Successfully removed group ${groupId} from user ${userId}'s joinedGroups`);
+    } catch (error) {
+      console.error('Error removing user from group:', error);
+      throw new Error('Failed to update user profile');
+    }
+  },
+
+  /**
+   * Get the current user's profile data
+   * @returns User profile data or null if not found
+   */
+  getCurrentUserProfile: async (): Promise<User | null> => {
+    const userId = ProfileService.getCurrentUserId();
+    
+    if (!userId) {
+      throw new Error('No authenticated user found');
+    }
+
+    try {
+      const userRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        return { uid: userDoc.id, ...userDoc.data() } as User;
+      } else {
+        return null;
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      throw new Error('Failed to fetch user profile');
+    }
+  },
+
+  /**
+   * Check if the current user has joined a specific group
+   * @param groupId - The WhatsApp group ID to check
+   * @returns true if user has joined the group, false otherwise
+   */
+  hasUserJoinedGroup: async (groupId: string): Promise<boolean> => {
+    try {
+      const userProfile = await ProfileService.getCurrentUserProfile();
+      
+      if (!userProfile || !userProfile.joinedGroups) {
+        return false;
+      }
+      
+      return userProfile.joinedGroups.includes(groupId);
+    } catch (error) {
+      console.error('Error checking if user joined group:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Update the current user's joinedReadingClubs array by adding a club ID
+   * @param clubId - The reading club ID to add to the user's joinedReadingClubs array
+   */
+  updateUserJoinedReadingClubs: async (clubId: string): Promise<void> => {
+    const userId = ProfileService.getCurrentUserId();
+    
+    if (!userId) {
+      throw new Error('No authenticated user found');
+    }
+
+    try {
+      const userRef = doc(db, "users", userId);
+      
+      await updateDoc(userRef, {
+        joinedReadingClubs: arrayUnion(clubId),
+        lastActive: serverTimestamp()
+      });
+      
+      console.log(`Successfully added reading club ${clubId} to user ${userId}'s joinedReadingClubs`);
+    } catch (error) {
+      console.error('Error updating user joined reading clubs:', error);
+      throw new Error('Failed to update user profile');
+    }
+  },
+
+  /**
+   * Remove a reading club from the current user's joinedReadingClubs array
+   * @param clubId - The reading club ID to remove from the user's joinedReadingClubs array
+   */
+  removeUserFromReadingClub: async (clubId: string): Promise<void> => {
+    const userId = ProfileService.getCurrentUserId();
+    
+    if (!userId) {
+      throw new Error('No authenticated user found');
+    }
+
+    try {
+      const userRef = doc(db, "users", userId);
+      
+      await updateDoc(userRef, {
+        joinedReadingClubs: arrayRemove(clubId),
+        lastActive: serverTimestamp()
+      });
+      
+      console.log(`Successfully removed reading club ${clubId} from user ${userId}'s joinedReadingClubs`);
+    } catch (error) {
+      console.error('Error removing user from reading club:', error);
+      throw new Error('Failed to update user profile');
+    }
+  },
+
+  /**
+   * Check if the current user has joined a specific reading club
+   * @param clubId - The reading club ID to check
+   * @returns true if user has joined the club, false otherwise
+   */
+  hasUserJoinedReadingClub: async (clubId: string): Promise<boolean> => {
+    try {
+      const userProfile = await ProfileService.getCurrentUserProfile();
+      
+      if (!userProfile || !userProfile.joinedReadingClubs) {
+        return false;
+      }
+      
+      return userProfile.joinedReadingClubs.includes(clubId);
+    } catch (error) {
+      console.error('Error checking if user joined reading club:', error);
+      return false;
+    }
   },
 };
 

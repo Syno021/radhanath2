@@ -500,16 +500,25 @@ const styles = {
     shadowRadius: 12,
     marginBottom: 8,
   },
-  cardGradient: {
+    cardGradient: {
     padding: 20,
     minHeight: 140,
-    justifyContent: 'space-between' as const,
+    flex: 1, // Add this to ensure full coverage
+    backgroundColor: '#FF6B00', // Ensure background color is always applied
   },
+
+  // Also update the cardContent style to ensure proper spacing:
+  cardContent: {
+    flex: 1,
+    justifyContent: 'flex-end', // Push content to bottom instead of space-between
+  },
+
+  // And update cardHeader to have proper spacing:
   cardHeader: {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
     alignItems: 'flex-start' as const,
-    marginBottom: 16,
+    marginBottom: 'auto', // This will push the header to top and content to bottom
   },
   iconContainer: {
     width: 50,
@@ -529,9 +538,6 @@ const styles = {
     fontSize: 10,
     fontWeight: '700' as const,
     textTransform: 'uppercase' as const,
-  },
-  cardContent: {
-    flex: 1,
   },
   cardTitle: {
     color: '#FFFFFF',

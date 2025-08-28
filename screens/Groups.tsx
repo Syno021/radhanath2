@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useHotReload } from '../services/ScrollableService';
-import { SafeAreaView, View, Text, FlatList, TouchableOpacity, ActivityIndicator, Linking, RefreshControl, TextInput, Dimensions } from 'react-native';
+import { SafeAreaView, View, Text, FlatList, TouchableOpacity, ActivityIndicator, Linking, RefreshControl, TextInput, Dimensions, Alert } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { getWhatsappGroups } from '../services/WhatsappGroupService';
+import ProfileService from '../services/userService'; // Import your existing ProfileService
 import { WhatsappGroup } from '../models/whatsappGroup.model';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -100,6 +101,58 @@ export default function UserWhatsappGroups() {
     fetchGroups();
   };
 
+  // Updated function to handle group joining confirmation
+  const handleGroupClick = (group: WhatsappGroup) => {
+    Alert.alert(
+      "Join WhatsApp Group",
+      `Are you a part of "${group.name}"?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Yes, I'm a member",
+          onPress: () => handleJoinGroup(group),
+          style: "default"
+        }
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const handleJoinGroup = async (group: WhatsappGroup) => {
+    try {
+      // Update user's joined groups using ProfileService
+      await ProfileService.updateUserJoinedGroups(group.id);
+      
+      // Show success message
+      Alert.alert(
+        "Success!",
+        `You've been added to ${group.name}. Opening WhatsApp now...`,
+        [
+          {
+            text: "OK",
+            onPress: () => openInviteLink(group.inviteLink),
+            style: "default"
+          }
+        ]
+      );
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      Alert.alert(
+        "Error",
+        "Failed to update your profile. Please try again.",
+        [
+          {
+            text: "OK",
+            style: "default"
+          }
+        ]
+      );
+    }
+  };
+
   const openInviteLink = (url: string) => {
     if (url) {
       Linking.openURL(url).catch(err => console.error("Couldn't open link", err));
@@ -138,7 +191,7 @@ export default function UserWhatsappGroups() {
           marginBottom: 16 
         }
       ]} 
-      onPress={() => openInviteLink(item.inviteLink)}
+      onPress={() => handleGroupClick(item)}
     >
       <View style={[
         styles.cardGradient, 

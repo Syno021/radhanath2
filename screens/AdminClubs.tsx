@@ -8,6 +8,7 @@ import {
   Alert,
   StyleSheet,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +19,9 @@ import {
   deleteReadingClub,
   getReadingClubs,
   getRegions,
+  approveJoinRequest,
+  rejectJoinRequest, // You'll need to add this to your service
+  getJoinRequestDetails, // You'll need to add this to your service
 } from '../services/ReadingClubService';
 import { ReadingClub } from '../models/ReadingClub.model';
 import GuideOverlay from '../components/GuideOverlay';
@@ -25,6 +29,13 @@ import GuideOverlay from '../components/GuideOverlay';
 interface Region {
   id: string;
   name: string;
+}
+
+interface JoinRequest {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  requestDate?: string;
 }
 
 const defaultFormState: Omit<ReadingClub, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -85,6 +96,13 @@ const AdminClubs: React.FC = () => {
       icon: "person-outline"
     }
   ];
+
+  // Join Requests Modal State
+  const [showJoinRequestsModal, setShowJoinRequestsModal] = useState(false);
+  const [selectedClub, setSelectedClub] = useState<ReadingClub | null>(null);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [processingRequest, setProcessingRequest] = useState<string | null>(null);
 
   useEffect(() => {
     loadClubs();
@@ -198,7 +216,6 @@ const AdminClubs: React.FC = () => {
       setEditId(null);
       await loadClubs();
       
-      // Show success message
       Alert.alert(
         'Success',
         editId ? 'Club updated successfully!' : 'Club added successfully!'
@@ -216,8 +233,6 @@ const AdminClubs: React.FC = () => {
     setFormData(rest);
     setEditId(id);
     setShowForm(true);
-    
-    // Scroll to top to show the form
     scrollToTop();
   };
 
@@ -264,6 +279,109 @@ const AdminClubs: React.FC = () => {
     setFormData(defaultFormState);
     setEditId(null);
     setError(null);
+  };
+
+  // Join Requests Functions
+  const handleViewJoinRequests = async (club: ReadingClub) => {
+    if (!club.joinRequests || club.joinRequests.length === 0) {
+      Alert.alert('No Requests', 'This club has no pending join requests.');
+      return;
+    }
+
+    setSelectedClub(club);
+    setShowJoinRequestsModal(true);
+    setLoadingRequests(true);
+
+    try {
+      // Fetch detailed information for each join request
+      const requestDetails = await getJoinRequestDetails(club.joinRequests);
+      setJoinRequests(requestDetails);
+    } catch (err) {
+      console.error('Error loading join requests:', err);
+      Alert.alert('Error', 'Failed to load join request details.');
+      setJoinRequests([]);
+    } finally {
+      setLoadingRequests(false);
+    }
+  };
+
+  const handleApproveRequest = async (userId: string, userName: string) => {
+    if (!selectedClub) return;
+
+    Alert.alert(
+      'Approve Request',
+      `Are you sure you want to approve ${userName}'s request to join "${selectedClub.name}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Approve',
+          onPress: async () => {
+            try {
+              setProcessingRequest(userId);
+              await approveJoinRequest(selectedClub.id, userId);
+              
+              // Update local state
+              setJoinRequests(prev => prev.filter(req => req.userId !== userId));
+              
+              // Reload clubs to get updated member count
+              await loadClubs();
+              
+              Alert.alert('Success', `${userName} has been approved and added to the club!`);
+              
+              // Close modal if no more requests
+              if (joinRequests.length === 1) {
+                setShowJoinRequestsModal(false);
+              }
+            } catch (err) {
+              console.error('Error approving request:', err);
+              Alert.alert('Error', 'Failed to approve the request. Please try again.');
+            } finally {
+              setProcessingRequest(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRejectRequest = async (userId: string, userName: string) => {
+    if (!selectedClub) return;
+
+    Alert.alert(
+      'Reject Request',
+      `Are you sure you want to reject ${userName}'s request to join "${selectedClub.name}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setProcessingRequest(userId);
+              await rejectJoinRequest(selectedClub.id, userId);
+              
+              // Update local state
+              setJoinRequests(prev => prev.filter(req => req.userId !== userId));
+              
+              // Reload clubs to get updated counts
+              await loadClubs();
+              
+              Alert.alert('Success', `${userName}'s request has been rejected.`);
+              
+              // Close modal if no more requests
+              if (joinRequests.length === 1) {
+                setShowJoinRequestsModal(false);
+              }
+            } catch (err) {
+              console.error('Error rejecting request:', err);
+              Alert.alert('Error', 'Failed to reject the request. Please try again.');
+            } finally {
+              setProcessingRequest(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const pickerContainer = (
@@ -580,9 +698,20 @@ const AdminClubs: React.FC = () => {
                   <Text style={styles.groupInfoItem}>
                     📅 Schedule: {club.schedule.day} at {club.schedule.time} ({club.schedule.frequency})
                   </Text>
-                  <Text style={styles.groupInfoItem}>
-                    👥 Members: {club.members?.length || 0} | Join Requests: {club.joinRequests?.length || 0}
-                  </Text>
+                  <View style={styles.membershipInfo}>
+                    <Text style={styles.groupInfoItem}>
+                      👥 Members: {club.members?.length || 0}
+                    </Text>
+                    <TouchableOpacity 
+                      style={styles.joinRequestsButton}
+                      onPress={() => handleViewJoinRequests(club)}
+                    >
+                      <Ionicons name="person-add" size={16} color="#FF6B00" />
+                      <Text style={styles.joinRequestsText}>
+                        Join Requests: {club.joinRequests?.length || 0}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <View style={styles.groupActions}>
@@ -608,6 +737,91 @@ const AdminClubs: React.FC = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* Join Requests Modal */}
+      <Modal
+        visible={showJoinRequestsModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowJoinRequestsModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Join Requests</Text>
+            <Text style={styles.modalSubtitle}>{selectedClub?.name}</Text>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => setShowJoinRequestsModal(false)}
+            >
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {loadingRequests ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#FF6B00" />
+                <Text style={styles.loadingText}>Loading join requests...</Text>
+              </View>
+            ) : joinRequests.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="person-add-outline" size={48} color="#CCC" />
+                <Text style={styles.emptyStateText}>No pending join requests</Text>
+              </View>
+            ) : (
+              joinRequests.map((request) => (
+                <View key={request.userId} style={styles.requestCard}>
+                  <View style={styles.requestInfo}>
+                    <Text style={styles.requestUserName}>{request.userName}</Text>
+                    <Text style={styles.requestUserEmail}>{request.userEmail}</Text>
+                    {request.requestDate && (
+                      <Text style={styles.requestDate}>Requested: {request.requestDate}</Text>
+                    )}
+                  </View>
+                  <View style={styles.requestActions}>
+                    <TouchableOpacity 
+                      style={[
+                        styles.requestButton, 
+                        styles.approveButton,
+                        processingRequest === request.userId && styles.disabledButton
+                      ]}
+                      onPress={() => handleApproveRequest(request.userId, request.userName)}
+                      disabled={processingRequest === request.userId}
+                    >
+                      {processingRequest === request.userId ? (
+                        <ActivityIndicator size="small" color="#FFF" />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark" size={16} color="#FFF" />
+                          <Text style={styles.requestButtonText}>Approve</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[
+                        styles.requestButton, 
+                        styles.rejectButton,
+                        processingRequest === request.userId && styles.disabledButton
+                      ]}
+                      onPress={() => handleRejectRequest(request.userId, request.userName)}
+                      disabled={processingRequest === request.userId}
+                    >
+                      {processingRequest === request.userId ? (
+                        <ActivityIndicator size="small" color="#FFF" />
+                      ) : (
+                        <>
+                          <Ionicons name="close" size={16} color="#FFF" />
+                          <Text style={styles.requestButtonText}>Reject</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -661,64 +875,276 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFEBEE',
     borderColor: '#FFCDD2', borderWidth: 1, borderRadius: 8, padding: 16, marginBottom: 16,
   },
+// Add these missing styles to your existing StyleSheet.create({...}) object
+
+  // Missing styles from the first document
   errorText: { color: '#FF4444', marginLeft: 8, flex: 1 },
+  
   loadingContainer: {
     alignItems: 'center',
     paddingVertical: 20,
   },
+  
   loadingText: {
     marginTop: 8,
     color: '#666',
     fontSize: 16,
   },
+  
   inputGroup: { marginBottom: 16 },
+  
   label: { fontSize: 16, fontWeight: '500', marginBottom: 8, color: '#1A1A1A' },
+  
   input: {
-    borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, padding: 12,
-    fontSize: 16, backgroundColor: '#FFF',
+    borderWidth: 1, 
+    borderColor: '#E0E0E0', 
+    borderRadius: 8, 
+    padding: 12,
+    fontSize: 16, 
+    backgroundColor: '#FFF',
   },
+  
   textArea: { minHeight: 80, textAlignVertical: 'top' },
+  
   pickerContainer: {
-    borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 8, backgroundColor: '#FFF',
+    borderWidth: 1, 
+    borderColor: '#E0E0E0', 
+    borderRadius: 8, 
+    backgroundColor: '#FFF',
   },
+  
   picker: { height: 50 },
+  
   row: { flexDirection: 'row', gap: 12 },
+  
   inputWrapper: { flex: 1 },
+  
   formButtons: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  
   groupCard: {
-    backgroundColor: '#FFF9F5', borderRadius: 12, padding: 16,
-    marginBottom: 12, borderWidth: 1, borderColor: '#FFE4CC',
+    backgroundColor: '#FFF9F5', 
+    borderRadius: 12, 
+    padding: 16,
+    marginBottom: 12, 
+    borderWidth: 1, 
+    borderColor: '#FFE4CC',
   },
+  
   groupHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8,
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'flex-start', 
+    marginBottom: 8,
   },
-  groupName: { fontSize: 18, fontWeight: '600', color: '#1A1A1A', flex: 1, marginRight: 12 },
+  
+  groupName: { 
+    fontSize: 18, 
+    fontWeight: '600', 
+    color: '#1A1A1A', 
+    flex: 1, 
+    marginRight: 12 
+  },
+  
   statusBadge: {
-    backgroundColor: '#FF6B00', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12,
+    backgroundColor: '#FF6B00', 
+    paddingHorizontal: 8, 
+    paddingVertical: 4, 
+    borderRadius: 12,
   },
-  statusText: { color: '#FFF', fontSize: 12, fontWeight: '500', textTransform: 'capitalize' },
-  groupDescription: { fontSize: 14, color: '#666', marginBottom: 12, lineHeight: 20 },
+  
+  statusText: { 
+    color: '#FFF', 
+    fontSize: 12, 
+    fontWeight: '500', 
+    textTransform: 'capitalize' 
+  },
+  
+  groupDescription: { 
+    fontSize: 14, 
+    color: '#666', 
+    marginBottom: 12, 
+    lineHeight: 20 
+  },
+  
   groupInfo: { marginBottom: 12 },
+  
   groupInfoItem: { fontSize: 14, color: '#666', marginBottom: 4 },
-  groupActions: { flexDirection: 'row', gap: 8 },
-  actionButton: { 
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
-    paddingVertical: 12, borderRadius: 8 
+  
+  membershipInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
   },
-  editButton: { backgroundColor: '#FFF4E6', borderWidth: 1, borderColor: '#FF6B00' },
+  
+  joinRequestsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF4E6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#FF6B00',
+  },
+  
+  joinRequestsText: {
+    fontSize: 12,
+    color: '#FF6B00',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  
+  groupActions: { flexDirection: 'row', gap: 8 },
+  
+  actionButton: { 
+    flex: 1, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    paddingVertical: 12, 
+    borderRadius: 8 
+  },
+  
+  editButton: { 
+    backgroundColor: '#FFF4E6', 
+    borderWidth: 1, 
+    borderColor: '#FF6B00' 
+  },
+  
   editButtonText: { color: '#FF6B00', marginLeft: 4, fontWeight: '500' },
-  deleteButton: { backgroundColor: '#FFEBEE', borderWidth: 1, borderColor: '#FF4444' },
+  
+  deleteButton: { 
+    backgroundColor: '#FFEBEE', 
+    borderWidth: 1, 
+    borderColor: '#FF4444' 
+  },
+  
   deleteButtonText: { color: '#FF4444', marginLeft: 4, fontWeight: '500' },
+  
   emptyState: {
     alignItems: 'center',
     paddingVertical: 40,
   },
+  
   emptyStateText: {
     color: '#999',
     fontSize: 16,
     marginTop: 12,
     textAlign: 'center',
   },
-});
+
+  // Modal styles for Join Requests Modal
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#FDFCFA',
+  },
+  
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 20,
+    backgroundColor: '#FDFCFA',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#FF6B00',
+    flex: 1,
+  },
+  
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+  },
+  
+  requestCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 4,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+  },
+  
+  requestInfo: {
+    marginBottom: 12,
+  },
+  
+  requestUserName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  
+  requestUserEmail: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  
+  requestDate: {
+    fontSize: 12,
+    color: '#999',
+  },
+  
+  requestActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  
+  requestButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  
+  approveButton: {
+    backgroundColor: '#4CAF50',
+  },
+  
+  rejectButton: {
+    backgroundColor: '#FF4444',
+  },
+  
+  requestButtonText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  });
 
 export default AdminClubs;

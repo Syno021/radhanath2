@@ -482,13 +482,20 @@ const styles = StyleSheet.create({
   cardGradient: {
     padding: 20,
     minHeight: 140,
-    justifyContent: 'space-between',
+    flex: 1, // Add this to ensure full coverage
+    backgroundColor: '#FF6B00', // Ensure background color is always applied
   },
+
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
+    marginBottom: 'auto', // Changed from fixed 16 to auto to push content to bottom
+  },
+
+  cardContent: {
+    flex: 1,
+    justifyContent: 'flex-end', // Push content to bottom instead of space-between
   },
   iconContainer: {
     width: 50,
@@ -509,9 +516,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
   },
-  cardContent: {
-    flex: 1,
-  },
+
   cardTitle: {
     color: '#FFFFFF',
     fontSize: 18,
