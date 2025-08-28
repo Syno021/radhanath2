@@ -136,7 +136,7 @@ export default function ReadingClubsScreen() {
           )}
         </View>
         
-        <View style={styles.cardContent}>
+        <View styles={styles.cardContent}>
           <Text style={[styles.cardTitle, index === 0 && styles.featuredTitle]} numberOfLines={2}>
             {item.name}
           </Text>
@@ -497,17 +497,26 @@ const styles = {
     shadowRadius: 12,
     marginBottom: 8,
   },
-  cardGradient: {
-    padding: 20,
-    minHeight: 200, // Increased height for more content
-    justifyContent: 'space-between' as const,
-  },
-  cardHeader: {
-    flexDirection: 'row' as const,
-    justifyContent: 'space-between' as const,
-    alignItems: 'flex-start' as const,
-    marginBottom: 16,
-  },
+  // Replace the existing cardGradient, cardHeader, and cardContent styles in the TempleScreen with these updated versions:
+
+cardGradient: {
+  padding: 20,
+  minHeight: 140,
+  flex: 1, // Add this to ensure full coverage
+  backgroundColor: '#FF6B00', // Ensure background color is always applied
+},
+
+cardHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  marginBottom: 'auto', // Changed from fixed 16 to auto to push content to bottom
+},
+
+cardContent: {
+  flex: 1,
+  justifyContent: 'flex-end', // Push content to bottom instead of space-between
+},
   iconContainer: {
     width: 50,
     height: 50,
@@ -526,9 +535,6 @@ const styles = {
     fontSize: 10,
     fontWeight: '700' as const,
     textTransform: 'uppercase' as const,
-  },
-  cardContent: {
-    flex: 1,
   },
   cardTitle: {
     color: '#FFFFFF',
