@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useHotReload } from '../services/ScrollableService';
 import { Region } from '../models/region.model';
 import { addRegion, getRegions, updateRegion, deleteRegion } from '../services/regionService';
+import GuideOverlay from '../components/GuideOverlay';
 
 const defaultFormState: Omit<Region, 'id'> = {
   name: '',
@@ -43,6 +44,30 @@ const AdminRegions: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredRegions, setFilteredRegions] = useState<Region[]>([]);
+  const [showGuide, setShowGuide] = useState(false);
+
+  const guideSteps = [
+    {
+      title: "Add Region",
+      description: "Create a new region by providing its name, description, and geographical coordinates.",
+      icon: "add-circle-outline"
+    },
+    {
+      title: "Location Details",
+      description: "Set precise latitude and longitude coordinates to mark the region on the map.",
+      icon: "location-outline"
+    },
+    {
+      title: "Temple Information",
+      description: "Specify the number of temples in the region and manage associated WhatsApp groups.",
+      icon: "business-outline"
+    },
+    {
+      title: "Manage Regions",
+      description: "Edit or remove existing regions, and view associated reading clubs and temples.",
+      icon: "map-outline"
+    }
+  ];
 
   useEffect(() => { loadRegions(); }, []);
 
@@ -182,10 +207,25 @@ const AdminRegions: React.FC = () => {
           <Text style={styles.headerTitle}>Regions</Text>
           <Text style={styles.headerSubtitle}>BBT Africa Connect - Admin</Text>
         </View>
-        <View style={styles.headerIcon}>
-          <Ionicons name="map-outline" size={24} color="#FF6B00" />
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.helpButton}
+            onPress={() => setShowGuide(true)}
+          >
+            <Ionicons name="help-circle-outline" size={24} color="#FF6B00" />
+          </TouchableOpacity>
+          <View style={styles.headerIcon}>
+            <Ionicons name="map-outline" size={24} color="#FF6B00" />
+          </View>
         </View>
       </View>
+
+      <GuideOverlay
+        visible={showGuide}
+        onClose={() => setShowGuide(false)}
+        steps={guideSteps}
+        screenName="Region Management"
+      />
 
       <ScrollView
         ref={scrollViewRef}

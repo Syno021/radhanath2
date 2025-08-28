@@ -20,6 +20,7 @@ import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from "fi
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import GuideOverlay from '../components/GuideOverlay';
 
 interface Book {
   id: string;
@@ -221,6 +222,7 @@ export default function AdminBookLogging() {
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [isManualEntry, setIsManualEntry] = useState(false);
   const [expandedReports, setExpandedReports] = useState<Record<string, boolean>>({});
+  const [showGuide, setShowGuide] = useState(false);
   
   const [currentReport, setCurrentReport] = useState<Partial<MonthlyReport>>({
     month: MONTHS[new Date().getMonth()],
@@ -275,41 +277,34 @@ export default function AdminBookLogging() {
   const fetchReports = async () => {
     setLoadingReports(true);
     try {
-      // First try with ordering, if it fails, try without ordering
-      let querySnapshot;
-      
-      try {
-        const reportsQuery = query(
-          collection(db, 'bookReports'),
-          orderBy('year', 'desc')
-        );
-        querySnapshot = await getDocs(reportsQuery);
-      } catch (orderError) {
-        console.log('Ordering failed, fetching without order:', orderError);
-        // If ordering fails (maybe no index), fetch all documents without ordering
-        querySnapshot = await getDocs(collection(db, 'bookReports'));
-      }
-      
-      const fetchedReports: MonthlyReport[] = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        console.log('Fetched report:', doc.id, data); // Debug log
-        fetchedReports.push({ 
-          id: doc.id, 
-          ...data 
-        } as MonthlyReport);
-      });
+      const fetchAllReports = async () => {
+        const reportsRef = collection(db, 'bookReports');
+        const querySnapshot = await getDocs(reportsRef); // Changed from reportsQuery to reportsRef
+        
+        const allReports: MonthlyReport[] = [];
+        querySnapshot.forEach((doc) => {
+          allReports.push({ 
+            id: doc.id, 
+            ...doc.data() 
+          } as MonthlyReport);
+        });
 
-      // Sort manually if we couldn't sort in the query
-      fetchedReports.sort((a, b) => {
-        if (a.year !== b.year) return b.year - a.year;
-        const monthA = MONTHS.indexOf(a.month);
-        const monthB = MONTHS.indexOf(b.month);
-        return monthB - monthA;
-      });
+        // Sort reports by year and month
+        allReports.sort((a, b) => {
+          if (a.year !== b.year) {
+            return b.year - a.year; // Most recent year first
+          }
+          // If same year, sort by month (December to January)
+          return MONTHS.indexOf(b.month) - MONTHS.indexOf(a.month);
+        });
 
-      console.log('Total reports fetched:', fetchedReports.length); // Debug log
-      setReports(fetchedReports);
+        return allReports;
+      };
+
+      const allReports = await fetchAllReports();
+      console.log('Total reports fetched:', allReports.length);
+      setReports(allReports);
+      
     } catch (error: any) {
       console.error('Error fetching reports:', error);
       Alert.alert('Error', 'Failed to fetch reports: ' + error.message);
@@ -596,6 +591,29 @@ export default function AdminBookLogging() {
     }
   };
 
+  const guideSteps = [
+    {
+      title: "Select Report Period",
+      description: "Choose the month and year for which you want to submit the book distribution report.",
+      icon: "calendar-outline"
+    },
+    {
+      title: "Add Books Manually",
+      description: "Search for books from the library or enter new books manually. Enter quantity and points for each book.",
+      icon: "book-outline"
+    },
+    {
+      title: "Bulk Upload",
+      description: "For multiple entries, download the template, fill it with your data, and upload the file.",
+      icon: "cloud-upload-outline"
+    },
+    {
+      title: "Submit Report",
+      description: "Review your entries and submit the report. All submitted reports can be viewed in the history section.",
+      icon: "checkmark-circle-outline"
+    }
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -603,10 +621,25 @@ export default function AdminBookLogging() {
           <Text style={styles.headerText}>BBT Africa Connect</Text>
           <Text style={styles.headerSubText}>Hare Krishna Book Distribution</Text>
         </View>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>Admin</Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.helpButton}
+            onPress={() => setShowGuide(true)}
+          >
+            <Ionicons name="help-circle-outline" size={24} color="#FF6B00" />
+          </TouchableOpacity>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>Admin</Text>
+          </View>
         </View>
       </View>
+
+      <GuideOverlay
+        visible={showGuide}
+        onClose={() => setShowGuide(false)}
+        steps={guideSteps}
+        screenName="Book Distribution Reports"
+      />
 
       <ScrollView style={styles.content}>
         {/* Report Selection */}
@@ -820,7 +853,6 @@ export default function AdminBookLogging() {
         {/* Reports History */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Reports History ({reports.length})</Text>
-          
           {loadingReports ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color="#FF8C42" />
@@ -842,12 +874,11 @@ export default function AdminBookLogging() {
               const reportKey = report.id || `${report.month}-${report.year}-${index}`;
               const isExpanded = !!expandedReports[reportKey];
               return (
-                <TouchableOpacity
-                  key={reportKey}
-                  style={styles.reportCard}
-                  onPress={() => toggleReportExpand(reportKey)}
-                >
-                  <View style={styles.reportHeader}>
+                <View key={reportKey} style={styles.reportCard}>
+                  <TouchableOpacity
+                    style={styles.reportHeader}
+                    onPress={() => toggleReportExpand(reportKey)}
+                  >
                     <Text style={styles.reportTitle}>
                       {report.month} {report.year}
                     </Text>
@@ -856,7 +887,7 @@ export default function AdminBookLogging() {
                       size={18} 
                       color="#FF6B00" 
                     />
-                  </View>
+                  </TouchableOpacity>
                   
                   <Text style={styles.reportStats}>
                     📚 Books: {report.totalBooks} | ⭐ Points: {report.totalPoints}
@@ -865,12 +896,11 @@ export default function AdminBookLogging() {
                   <Text style={styles.reportFile}>📄 {report.fileName}</Text>
                   
                   <Text style={styles.reportDetails}>
-                    {report.books?.length || 0} unique titles • Uploaded: {formatUploadDate(report.uploadedAt)}
+                    {report.books?.length || 0} unique titles • {formatUploadDate(report.uploadedAt)}
                   </Text>
 
                   {isExpanded && (
                     <View style={styles.expandedContent}>
-                      <Text style={styles.expandedTitle}>Book Details:</Text>
                       {(report.books || []).map((book, bIndex) => (
                         <View key={`${reportKey}-${bIndex}`} style={styles.expandedBookItem}>
                           <Text style={styles.bookTitle}>
@@ -878,17 +908,16 @@ export default function AdminBookLogging() {
                             {book.bookId && <Text style={styles.bookIdBadge}> 📚</Text>}
                           </Text>
                           <Text style={styles.bookDetails}>
-                            {book.bookId && <Text>ID: {book.bookId} | </Text>}
-                            Qty: {book.quantity} | Points: {book.points} each | {book.publisher}
+                            Qty: {book.quantity} | Points: {book.points} each
                           </Text>
                           <Text style={styles.bookType}>
-                            {book.isBBTBook ? '🟢 BBT Book' : '🔵 Other Book'} | Total Points: {book.quantity * book.points}
+                            {book.isBBTBook ? '🟢 BBT' : '🔵 Other'} • Total: {book.quantity * book.points} pts
                           </Text>
                         </View>
                       ))}
                     </View>
                   )}
-                </TouchableOpacity>
+                </View>
               );
             })
           )}
@@ -942,6 +971,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '500',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  helpButton: {
+    padding: 4,
   },
   
   // Content styles
@@ -1250,6 +1287,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#FFE4CC',
+    shadowColor: '#FF6B00',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   reportHeader: {
     flexDirection: 'row',
@@ -1279,21 +1321,17 @@ const styles = StyleSheet.create({
   
   // Expanded content styles
   expandedContent: {
-    marginTop: 16,
-    paddingTop: 16,
+    marginTop: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
   },
-  expandedTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-  },
   expandedBookItem: {
-    backgroundColor: '#F9F9F9',
+    backgroundColor: '#FFF9F5',
     borderRadius: 8,
     padding: 12,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FFE4CC',
   },
 });
