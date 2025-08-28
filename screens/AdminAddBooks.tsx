@@ -427,6 +427,7 @@ export default function AdminAddBooks() {
 
   return (
     <View style={styles.container}>
+      
       <StatusBar barStyle="dark-content" backgroundColor="#FDFCFA" />
       
       {/* Header */}
@@ -749,6 +750,23 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FDFCFA',
   },
+  helpButton: {
+  position: 'absolute',
+  bottom: 20,
+  right: 20,
+  backgroundColor: '#FFF4E6',
+  borderRadius: 50,
+  padding: 12,
+  elevation: 3,
+  shadowColor: '#FF6B00',
+  shadowOpacity: 0.3,
+},
+guideStep: {
+  fontSize: 14,
+  marginBottom: 12,
+  color: '#333',
+  lineHeight: 20,
+},
   header: {
     flexDirection: 'row',
     alignItems: 'center',

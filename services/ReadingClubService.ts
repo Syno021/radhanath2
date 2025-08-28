@@ -19,13 +19,29 @@ import { ReadingClub } from '../models/ReadingClub.model';
 
 const COLLECTION_NAME = 'reading-clubs';
 const REGIONS_COLLECTION = 'regions';
-const USERS_COLLECTION = 'users'; // Assuming you have a users collection
+const USERS_COLLECTION = 'users';
+const BOOKS_COLLECTION = 'books';
+const GROUPS_COLLECTION = 'whatsapp-groups';
 
 interface JoinRequest {
   userId: string;
   userName: string;
   userEmail: string;
   requestDate?: string;
+}
+
+interface Book {
+  id: string;
+  title: string;
+  author?: string;
+  isbn?: string;
+}
+
+interface WhatsAppGroup {
+  id: string;
+  name: string;
+  description?: string;
+  inviteLink?: string;
 }
 
 // Add a new reading club
@@ -172,6 +188,78 @@ export const getRegions = async (): Promise<{ id: string; name: string }[]> => {
   }
 };
 
+// NEW: Get all books from Firestore
+export const getBooks = async (): Promise<Book[]> => {
+  try {
+    const snapshot = await getDocs(collection(db, BOOKS_COLLECTION));
+    return snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      title: docSnap.data().title,
+      author: docSnap.data().author,
+      isbn: docSnap.data().isbn,
+    }));
+  } catch (error) {
+    console.error('Error fetching books:', error);
+    throw error;
+  }
+};
+
+// NEW: Get all WhatsApp groups from Firestore
+export const getWhatsAppGroups = async (): Promise<WhatsAppGroup[]> => {
+  try {
+    const snapshot = await getDocs(collection(db, GROUPS_COLLECTION));
+    return snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      name: docSnap.data().name,
+      description: docSnap.data().description,
+      inviteLink: docSnap.data().inviteLink,
+    }));
+  } catch (error) {
+    console.error('Error fetching WhatsApp groups:', error);
+    throw error;
+  }
+};
+
+// NEW: Get book details by ID
+export const getBookById = async (bookId: string): Promise<Book | null> => {
+  try {
+    const docRef = doc(db, BOOKS_COLLECTION, bookId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return {
+        id: docSnap.id,
+        title: docSnap.data().title,
+        author: docSnap.data().author,
+        isbn: docSnap.data().isbn,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching book:', error);
+    return null;
+  }
+};
+
+// NEW: Get WhatsApp group details by ID
+export const getWhatsAppGroupById = async (groupId: string): Promise<WhatsAppGroup | null> => {
+  try {
+    const docRef = doc(db, GROUPS_COLLECTION, groupId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return {
+        id: docSnap.id,
+        name: docSnap.data().name,
+        description: docSnap.data().description,
+        inviteLink: docSnap.data().inviteLink,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching WhatsApp group:', error);
+    return null;
+  }
+};
+
 // Request to join a reading club (adds userId to joinRequests array)
 export const requestToJoinClub = async (clubId: string, userId: string) => {
   try {
@@ -209,7 +297,7 @@ export const approveJoinRequest = async (clubId: string, userId: string) => {
   }
 };
 
-// NEW: Reject a join request (removes userId from joinRequests)
+// Reject a join request (removes userId from joinRequests)
 export const rejectJoinRequest = async (clubId: string, userId: string) => {
   try {
     const clubRef = doc(db, COLLECTION_NAME, clubId);
@@ -223,7 +311,7 @@ export const rejectJoinRequest = async (clubId: string, userId: string) => {
   }
 };
 
-// NEW: Get detailed information for join requests
+// Get detailed information for join requests
 export const getJoinRequestDetails = async (userIds: string[]): Promise<JoinRequest[]> => {
   try {
     if (!userIds || userIds.length === 0) {
@@ -272,7 +360,7 @@ export const getJoinRequestDetails = async (userIds: string[]): Promise<JoinRequ
   }
 };
 
-// NEW: Get user details by ID (utility function)
+// Get user details by ID (utility function)
 export const getUserById = async (userId: string) => {
   try {
     const userRef = doc(db, USERS_COLLECTION, userId);
@@ -308,7 +396,7 @@ export const getReadingClubsByRegion = async (regionId: string): Promise<Reading
   }
 };
 
-// NEW: Remove a member from a club (removes from both club and user records)
+// Remove a member from a club (removes from both club and user records)
 export const removeMemberFromClub = async (clubId: string, userId: string) => {
   try {
     // Remove user from club members
@@ -330,7 +418,7 @@ export const removeMemberFromClub = async (clubId: string, userId: string) => {
   }
 };
 
-// NEW: Handle user leaving a club voluntarily
+// Handle user leaving a club voluntarily
 export const leaveClub = async (clubId: string, userId: string) => {
   try {
     await removeMemberFromClub(clubId, userId);
