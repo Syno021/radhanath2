@@ -47,6 +47,6 @@
         "projectId": "512d8cbb-60ae-44c6-91fd-081ddb9aaace"
       }
     },
-    "platforms": ["ios", "android"]
+    "platforms": ["ios", "android", "web"]
   }
 }
