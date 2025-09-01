@@ -7,7 +7,7 @@
     "icon": "./assets/images/book1.png",
     "scheme": "radharadhanath",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "entryPoint": "./index.js",
     "ios": {
       "supportsTablet": true
