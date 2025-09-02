@@ -77,8 +77,8 @@ const defaultFormState: Omit<ReadingClub, 'id' | 'createdAt' | 'updatedAt'> = {
   meetingType: 'online',
   location: { address: '', latitude: 0, longitude: 0 },
   schedule: { day: '', time: '', frequency: 'weekly' },
-  currentBookId: '', // Updated field name
-  groupIds: [], // Updated to array
+  currentBookId: '',
+  groupIds: '', // Changed from array to single string
   regionId: '',
   facilitator: { name: '', contact: '' },
   members: [],
@@ -266,27 +266,11 @@ const AdminClubs: React.FC = () => {
 
   // Handle group selection (multiple groups)
   const handleGroupChange = (groupId: string) => {
-    if (!groupId) return;
-    
-    setFormData((prev) => {
-      const currentGroupIds = prev.groupIds || [];
-      const isAlreadySelected = currentGroupIds.includes(groupId);
-      
-      if (isAlreadySelected) {
-        // Remove if already selected
-        return {
-          ...prev,
-          groupIds: currentGroupIds.filter(id => id !== groupId),
-        };
-      } else {
-        // Add to selection
-        return {
-          ...prev,
-          groupIds: [...currentGroupIds, groupId],
-        };
-      }
-    });
-  };
+  setFormData((prev) => ({
+    ...prev,
+    groupIds: groupId, // Set single group ID
+  }));
+};
 
   const handleLocationChange = (name: string, value: string) => {
     setFormData((prev) => {
@@ -504,17 +488,11 @@ const AdminClubs: React.FC = () => {
   };
 
   // Helper function to get group names by IDs
-  const getGroupNamesByIds = (groupIds: string[]) => {
-    if (!groupIds || groupIds.length === 0) return 'No groups assigned';
+  const getGroupNamesByIds = (groupId: string) => {
+    if (!groupId) return 'No group assigned';
     
-    const groupNames = groupIds
-      .map(id => {
-        const group = whatsappGroups.find(g => g.id === id);
-        return group ? group.name : 'Unknown Group';
-      })
-      .join(', ');
-    
-    return groupNames || 'No groups assigned';
+    const group = whatsappGroups.find(g => g.id === groupId);
+    return group ? group.name : 'Unknown Group';
   };
 
   // Helper function to check if a group is selected
@@ -557,48 +535,26 @@ const AdminClubs: React.FC = () => {
   );
 
   const groupPicker = (
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>WhatsApp Groups (Select Multiple)</Text>
-      <ScrollView style={{ maxHeight: 150, borderWidth: 1, borderColor: '#DDD', borderRadius: 8, padding: 8 }}>
+  <View style={styles.inputGroup}>
+    <Text style={styles.label}>WhatsApp Group</Text>
+    <View style={styles.pickerContainer}>
+      <Picker
+        selectedValue={formData.groupIds}
+        onValueChange={handleGroupChange}
+        style={styles.picker}
+      >
+        <Picker.Item label="Select WhatsApp Group" value="" />
         {whatsappGroups.map((group) => (
-          <TouchableOpacity 
-            key={group.id}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingVertical: 8,
-              paddingHorizontal: 4,
-              backgroundColor: isGroupSelected(group.id) ? '#FFF5E6' : 'transparent',
-              borderRadius: 4,
-              marginBottom: 4,
-            }}
-            onPress={() => handleGroupChange(group.id)}
-          >
-            <Ionicons 
-              name={isGroupSelected(group.id) ? "checkbox" : "checkbox-outline"} 
-              size={20} 
-              color={isGroupSelected(group.id) ? "#FF6B00" : "#999"} 
-            />
-            <View style={{ marginLeft: 8, flex: 1 }}>
-              <Text style={{ 
-                fontSize: 14, 
-                fontWeight: isGroupSelected(group.id) ? 'bold' : 'normal',
-                color: isGroupSelected(group.id) ? "#FF6B00" : "#333"
-              }}>
-                {group.name}
-              </Text>
-              {/* Only show group name; other details intentionally omitted */}
-            </View>
-          </TouchableOpacity>
+          <Picker.Item 
+            key={group.id} 
+            label={group.name} 
+            value={group.id} 
+          />
         ))}
-      </ScrollView>
-      {formData.groupIds && formData.groupIds.length > 0 && (
-        <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-          Selected: {formData.groupIds.length} group(s)
-        </Text>
-      )}
+      </Picker>
     </View>
-  );
+  </View>
+);
 
   return (
     <View style={styles.container}>

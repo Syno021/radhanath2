@@ -15,7 +15,7 @@ export interface ReadingClub {
   };
   currentBookId?: string; // Changed from currentBook to currentBookId (Book ID)
   regionId: string;
-  groupIds: string[]; // Changed from group to groupIds (WhatsApp Group IDs array)
+  groupIds: string; // Changed from group to groupIds (WhatsApp Group IDs array)
   facilitator: {
     name: string;
     contact: string;

@@ -57,7 +57,7 @@ export default function Home() {
           onPress={() => navigation.navigate("Login")}
         >
           <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '500' }}>
-            Register
+            Login
           </Text>
         </TouchableOpacity>
       </View>
