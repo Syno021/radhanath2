@@ -14,15 +14,17 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  FlatList,
 } from "react-native";
 import * as ImagePicker from 'expo-image-picker';
 import { auth, db } from "../firebaseCo";
-import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, updateDoc, collection, getDocs, query, orderBy } from "firebase/firestore";
 import { signOut, User, updateProfile } from "firebase/auth";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../app/navigation/AppNavigator";
 import ProfileService from "../services/userService";
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -53,6 +55,217 @@ interface EditFormData {
   bookInterests: string;
 }
 
+interface Book {
+  id: string;
+  title: string;
+  author: string;
+  description?: string;
+  category?: string;
+}
+
+const SearchableBookDropdown: React.FC<{
+  books: Book[];
+  onBookSelect: (book: Book) => void;
+  placeholder?: string;
+}> = ({ books, onBookSelect, placeholder = "Search for a book..." }) => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [filteredBooks, setFilteredBooks] = useState<Book[]>(books);
+
+  useEffect(() => {
+    if (searchText.trim() === '') {
+      setFilteredBooks(books);
+    } else {
+      const filtered = books.filter(book =>
+        book.title.toLowerCase().includes(searchText.toLowerCase()) ||
+        (book.author && book.author.toLowerCase().includes(searchText.toLowerCase()))
+      );
+      setFilteredBooks(filtered);
+    }
+  }, [searchText, books]);
+
+  return (
+    <Modal
+      visible={isDropdownOpen}
+      transparent={true}
+      animationType="slide"
+      onRequestClose={() => setIsDropdownOpen(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select a Book</Text>
+            <TouchableOpacity onPress={() => setIsDropdownOpen(false)}>
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#666" />
+            <TextInput
+              style={styles.searchInput}
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholder="Search by title or author..."
+              autoFocus={true}
+            />
+          </View>
+
+          <FlatList
+            data={filteredBooks}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.dropdownItem}
+                onPress={() => {
+                  onBookSelect(item);
+                  setIsDropdownOpen(false);
+                }}
+              >
+                <Text style={styles.bookItemTitle}>{item.title}</Text>
+                {item.author && <Text style={styles.bookItemSubtext}>by {item.author}</Text>}
+                {item.category && <Text style={styles.bookItemSubtext}>{item.category}</Text>}
+              </TouchableOpacity>
+            )}
+            style={styles.booksList}
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const BookList: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  onBookSelect: (book: Book) => void;
+}> = ({ visible, onClose, onBookSelect }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [books, setBooks] = useState<Book[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchBooks();
+  }, []);
+
+  const fetchBooks = async () => {
+    setLoading(true);
+    try {
+      const booksQuery = query(collection(db, 'books'), orderBy('title'));
+      const snapshot = await getDocs(booksQuery);
+      const fetchedBooks = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Book));
+      setBooks(fetchedBooks);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load books');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredBooks = books.filter(book =>
+    book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    book.author?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={{ flex: 1, backgroundColor: '#FDFCFA' }}>
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: 16,
+          borderBottomWidth: 1,
+          borderBottomColor: '#FFE4CC',
+          paddingTop: 60
+        }}>
+          <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
+            <Ionicons name="close" size={24} color="#FF6B00" />
+          </TouchableOpacity>
+          <Text style={{
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#FF6B00',
+            marginLeft: 16
+          }}>Select Books</Text>
+        </View>
+
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: 16,
+          backgroundColor: '#FFFFFF'
+        }}>
+          <Ionicons name="search" size={20} color="#666" />
+          <TextInput
+            style={{
+              flex: 1,
+              marginLeft: 8,
+              fontSize: 16,
+              color: '#333'
+            }}
+            placeholder="Search books..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        {loading ? (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <ActivityIndicator size="large" color="#FF6B00" />
+          </View>
+        ) : (
+          <FlatList
+            data={filteredBooks}
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={{
+                  padding: 16,
+                  borderBottomWidth: 1,
+                  borderBottomColor: '#FFE4CC',
+                  backgroundColor: '#FFFFFF'
+                }}
+                onPress={() => {
+                  onBookSelect(item);
+                  onClose();
+                }}
+              >
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: '500',
+                  color: '#333',
+                  marginBottom: 4
+                }}>{item.title}</Text>
+                {item.author && (
+                  <Text style={{
+                    fontSize: 14,
+                    color: '#666'
+                  }}>by {item.author}</Text>
+                )}
+                {item.category && (
+                  <Text style={{
+                    fontSize: 12,
+                    color: '#999',
+                    marginTop: 4
+                  }}>{item.category}</Text>
+                )}
+              </TouchableOpacity>
+            )}
+            contentContainerStyle={{ paddingBottom: 20 }}
+          />
+        )}
+      </View>
+    </Modal>
+  );
+};
+
 export default function Profile() {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const { width } = useWindowDimensions();
@@ -72,6 +285,10 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
   const [newInterest, setNewInterest] = useState('');
+  const [books, setBooks] = useState<Book[]>([]);
+  const [loadingBooks, setLoadingBooks] = useState(false);
+  const [showBookSearch, setShowBookSearch] = useState(false);
+  const [showBookList, setShowBookList] = useState(false);
 
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
@@ -119,6 +336,25 @@ export default function Profile() {
     } catch (error) {
       console.error("Error setting up user data listener:", error);
       setLoading(false);
+    }
+  };
+
+  const fetchBooks = async () => {
+    setLoadingBooks(true);
+    try {
+      const booksQuery = query(collection(db, 'books'), orderBy('title'));
+      const querySnapshot = await getDocs(booksQuery);
+      
+      const fetchedBooks: Book[] = [];
+      querySnapshot.forEach((doc) => {
+        fetchedBooks.push({ id: doc.id, ...doc.data() } as Book);
+      });
+
+      setBooks(fetchedBooks);
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to fetch books: ' + error.message);
+    } finally {
+      setLoadingBooks(false);
     }
   };
 
@@ -277,6 +513,21 @@ export default function Profile() {
       ...prev,
       bookInterests: updatedInterests.join(', ')
     }));
+  };
+
+  const handleBookSelect = (book: Book) => {
+    const currentInterests = editFormData.bookInterests
+      .split(',')
+      .map(interest => interest.trim())
+      .filter(interest => interest.length > 0);
+    
+    if (!currentInterests.includes(book.title)) {
+      const updatedInterests = [...currentInterests, book.title];
+      setEditFormData(prev => ({
+        ...prev,
+        bookInterests: updatedInterests.join(', ')
+      }));
+    }
   };
 
   const formatDate = (timestamp: any) => {
@@ -567,68 +818,28 @@ export default function Profile() {
             </View>
 
             {/* Book Interests Section */}
-            <View style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: 16,
-              padding: 24,
-              elevation: 3,
-              shadowColor: '#FF6B00',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.08,
-              shadowRadius: 12
-            }}>
-              <Text style={{
-                fontSize: 18,
-                fontWeight: '500',
-                color: '#FF6B00',
-                marginBottom: 20
-              }}>
-                Book Interests
-              </Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Book Interests</Text>
+              
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#FF6B00',
+                  padding: 16,
+                  borderRadius: 12,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: 16
+                }}
+                onPress={() => setShowBookList(true)}
+              >
+                <Ionicons name="book-outline" size={20} color="#FFFFFF" />
+                <Text style={{
+                  color: '#FFFFFF',
+                  fontSize: 16,
+                  marginLeft: 8
+                }}>Browse Books</Text>
+              </TouchableOpacity>
 
-              {/* Add new interest */}
-              <View style={{
-                flexDirection: 'row',
-                marginBottom: 16,
-                alignItems: 'center'
-              }}>
-                <TextInput
-                  style={{
-                    flex: 1,
-                    borderWidth: 1,
-                    borderColor: '#FFE4CC',
-                    borderRadius: 12,
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    backgroundColor: '#FDFCFA',
-                    fontSize: 16,
-                    marginRight: 12
-                  }}
-                  value={newInterest}
-                  onChangeText={setNewInterest}
-                  placeholder="Add a book interest"
-                  onSubmitEditing={addBookInterest}
-                />
-                <TouchableOpacity
-                  onPress={addBookInterest}
-                  style={{
-                    backgroundColor: '#FF6B00',
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
-                    borderRadius: 12
-                  }}
-                >
-                  <Text style={{
-                    color: '#FFFFFF',
-                    fontSize: 14,
-                    fontWeight: '500'
-                  }}>
-                    Add
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Current interests */}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {editFormData.bookInterests.split(',').map((interest, index) => {
                   const trimmedInterest = interest.trim();
@@ -637,38 +848,20 @@ export default function Profile() {
                     <TouchableOpacity
                       key={index}
                       onPress={() => removeBookInterest(trimmedInterest)}
-                      style={{
-                        backgroundColor: '#FFF9F5',
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        borderRadius: 16,
-                        marginRight: 8,
-                        marginBottom: 8,
-                        borderWidth: 1,
-                        borderColor: '#FFE4CC',
-                        flexDirection: 'row',
-                        alignItems: 'center'
-                      }}
+                      style={styles.interestTag}
                     >
-                      <Text style={{
-                        fontSize: 14,
-                        color: '#FF6B00',
-                        fontWeight: '400',
-                        marginRight: 4
-                      }}>
-                        {trimmedInterest}
-                      </Text>
-                      <Text style={{
-                        fontSize: 14,
-                        color: '#FF6B00',
-                        fontWeight: '600'
-                      }}>
-                        ×
-                      </Text>
+                      <Text style={styles.interestText}>{trimmedInterest}</Text>
+                      <Text style={styles.removeInterest}>×</Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
+
+              <BookList
+                visible={showBookList}
+                onClose={() => setShowBookList(false)}
+                onBookSelect={handleBookSelect}
+              />
             </View>
           </ScrollView>
         </View>
@@ -1145,3 +1338,108 @@ export default function Profile() {
     </View>
   );
 }
+
+const styles = {
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEE',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    backgroundColor: '#F9F9F9',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 10,
+  },
+  booksList: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  dropdownItem: {
+    paddingVertical: 15,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  bookItemTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  bookItemSubtext: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  interestTag: {
+    backgroundColor: '#FFF9F5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FFE4CC',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  interestText: {
+    fontSize: 14,
+    color: '#FF6B00',
+    marginRight: 4,
+  },
+  removeInterest: {
+    fontSize: 16,
+    color: '#FF6B00',
+    fontWeight: '600',
+  },
+  section: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    elevation: 3,
+    shadowColor: '#FF6B00',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    marginBottom: 24
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#FF6B00',
+    marginBottom: 16
+  },
+};
