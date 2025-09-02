@@ -27,6 +27,7 @@ export default function TempleScreen() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filteredTemples, setFilteredTemples] = useState<Temple[]>([]);
   const [showScrollToTop, setShowScrollToTop] = useState<boolean>(false);
+  const [imageLoadErrors, setImageLoadErrors] = useState<{[key: string]: boolean}>({});
 
   useEffect(() => {
     loadInitialData();
@@ -98,6 +99,82 @@ export default function TempleScreen() {
   const handleScroll = (event: any) => {
     const currentScrollY = event.nativeEvent.contentOffset.y;
     setShowScrollToTop(currentScrollY > 300);
+  };
+
+  const handleImageError = (templeId: string) => {
+    setImageLoadErrors(prev => ({
+      ...prev,
+      [templeId]: true
+    }));
+  };
+
+  const renderTempleCard = (temple: Temple, index: number) => {
+    const hasImage = temple.imageUrl && !imageLoadErrors[temple.id];
+    
+    return (
+      <TouchableOpacity key={temple.id} style={styles.exploreCard} activeOpacity={0.8}>
+        <View style={styles.cardContainer}>
+          {/* Image Header */}
+          {hasImage ? (
+            <View style={styles.imageContainer}>
+              <Image
+                source={{ uri: temple.imageUrl }}
+                style={styles.templeImage}
+                resizeMode="cover"
+                onError={() => handleImageError(temple.id)}
+              />
+              {/* Featured badge overlay */}
+              {index === 0 && (
+                <View style={styles.featuredBadgeOverlay}>
+                  <View style={styles.featuredBadge}>
+                    <Text style={styles.featuredText}>Featured</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          ) : (
+            // Fallback to icon if no image
+            <View style={[styles.imageContainer, styles.noImageContainer]}>
+              <View style={styles.iconContainer}>
+                <Ionicons name="library-outline" size={32} color="#FF6B00" />
+              </View>
+              {index === 0 && (
+                <View style={styles.featuredBadgeOverlay}>
+                  <View style={styles.featuredBadge}>
+                    <Text style={styles.featuredText}>Featured</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Content Section with Orange Background */}
+          <View style={[styles.cardGradient, { backgroundColor: getCardColor(index) }]}>
+            <View style={styles.cardContent}>
+              <Text style={[styles.cardTitle, index === 0 && styles.featuredTitle]}>
+                {temple.name}
+              </Text>
+              {temple.description && (
+                <Text style={[styles.cardDescription, index === 0 && styles.featuredDescription]} numberOfLines={2}>
+                  {temple.description}
+                </Text>
+              )}
+            </View>
+            
+            <View style={styles.cardFooter}>
+              <View style={styles.countContainer}>
+                <Text style={styles.countText}>
+                  {temple.regionName || getRegionName(temple.regionId)}
+                </Text>
+              </View>
+              <View style={styles.arrowContainer}>
+                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+              </View>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   if (loading && temples.length === 0) {
@@ -192,46 +269,9 @@ export default function TempleScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.exploreGrid}>
-          {filteredTemples.map((temple: Temple, index: number) => (
-            <TouchableOpacity key={temple.id} style={styles.exploreCard} activeOpacity={0.8}>
-              <View
-                style={[styles.cardGradient, { backgroundColor: getCardColor(index) }]}
-              >
-                <View style={styles.cardHeader}>
-                  <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}>
-                    <Ionicons name="library-outline" size={24} color="#FFFFFF" />
-                  </View>
-                  {index === 0 && (
-                    <View style={styles.featuredBadge}>
-                      <Text style={styles.featuredText}>Featured</Text>
-                    </View>
-                  )}
-                </View>
-                
-                <View style={styles.cardContent}>
-                  <Text style={[styles.cardTitle, index === 0 && styles.featuredTitle]}>
-                    {temple.name}
-                  </Text>
-                  {temple.description && (
-                    <Text style={[styles.cardDescription, index === 0 && styles.featuredDescription]} numberOfLines={2}>
-                      {temple.description}
-                    </Text>
-                  )}
-                </View>
-                
-                <View style={styles.cardFooter}>
-                  <View style={styles.countContainer}>
-                    <Text style={styles.countText}>
-                      {temple.regionName || getRegionName(temple.regionId)}
-                    </Text>
-                  </View>
-                  <View style={styles.arrowContainer}>
-                    <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+          {filteredTemples.map((temple: Temple, index: number) => 
+            renderTempleCard(temple, index)
+          )}
         </View>
 
         {/* Empty State */}
@@ -249,7 +289,6 @@ export default function TempleScreen() {
           </View>
         )}
       </ScrollView>
-
 
       {/* Scroll to Top Button */}
       {showScrollToTop && (
@@ -299,7 +338,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1A1A1A', // Changed to black
+    color: '#1A1A1A',
     letterSpacing: 0.3,
   },
   profileContainer: {
@@ -376,7 +415,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#1A1A1A', // Changed to black
+    color: '#1A1A1A',
     paddingVertical: 4,
   },
   clearButton: {
@@ -424,21 +463,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Results Info
-  resultsInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#F8FDF8',
-  },
-  resultsText: {
-    fontSize: 14,
-    color: '#1A1A1A', // Changed to black
-    fontWeight: '500',
-  },
-
   // Content Styles
   scrollView: {
     flex: 1,
@@ -446,19 +470,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 20,
     paddingBottom: 40,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1A1A1A', // Changed to black
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: '#1A1A1A', // Changed to black
-    fontWeight: '400',
-    marginBottom: 24,
-    lineHeight: 20,
   },
 
   // Explore Grid
@@ -471,41 +482,47 @@ const styles = StyleSheet.create({
   exploreCard: {
     width: (screenWidth - 60) / 2,
     borderRadius: 16,
+    backgroundColor: '#FF6B00',
     overflow: 'hidden',
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 12,
-    marginBottom: 8,
-  },
-  cardGradient: {
-    padding: 20,
-    minHeight: 140,
-    flex: 1, // Add this to ensure full coverage
-    backgroundColor: '#FF6B00', // Ensure background color is always applied
+    marginBottom: 16,
   },
 
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 'auto', // Changed from fixed 16 to auto to push content to bottom
+  // Card Container
+  cardContainer: {
+    backgroundColor: '#FF6B00',
+    borderRadius: 16,
+    overflow: 'hidden',
   },
 
-  cardContent: {
-    flex: 1,
-    justifyContent: 'flex-end', // Push content to bottom instead of space-between
+  // Image Styles
+  imageContainer: {
+    width: '100%',
+    height: 120,
+    position: 'relative',
   },
-  iconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  templeImage: {
+    width: '100%',
+    height: '100%',
+  },
+  noImageContainer: {
+    backgroundColor: '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  
+  // Featured Badge Overlay
+  featuredBadgeOverlay: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
   featuredBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(255, 107, 0, 0.9)',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -517,26 +534,44 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
+  // Content Section (Orange Background)
+  cardGradient: {
+    padding: 16,
+    minHeight: 100,
+  },
+  cardContent: {
+    flex: 1,
+    marginBottom: 12,
+  },
+  iconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   cardTitle: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 6,
     letterSpacing: 0.3,
+    lineHeight: 20,
   },
   featuredTitle: {
-    fontSize: 22,
+    fontSize: 18,
   },
   cardDescription: {
     color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '400',
-    lineHeight: 18,
-    marginBottom: 16,
+    lineHeight: 16,
   },
   featuredDescription: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -548,13 +583,13 @@ const styles = StyleSheet.create({
   },
   countText: {
     color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
   },
   arrowContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -562,13 +597,15 @@ const styles = StyleSheet.create({
 
   // Loading States
   loadingContainer: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 40,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#1A1A1A', // Changed to black
+    color: '#1A1A1A',
     fontWeight: '500',
   },
 
@@ -581,7 +618,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: '#1A1A1A', // Changed to black
+    color: '#1A1A1A',
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 20,
@@ -596,49 +633,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
-  },
-
-  // Stats Section
-  statsSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FDFCFA',
-    borderTopWidth: 1,
-    borderTopColor: '#E8F5E8',
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A1A1A', // Changed to black
-    marginBottom: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FF6B00',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#1A1A1A', // Changed to black
-    fontWeight: '500',
-    textAlign: 'center',
   },
 
   // Scroll to Top Button
