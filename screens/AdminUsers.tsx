@@ -307,7 +307,6 @@ const AdminUsers: React.FC = () => {
         {isScrollable && (
           <View style={styles.progressContainer}>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${scrollPercentage}%` }]} />
             </View>
             <Text style={styles.progressText}>{Math.round(scrollPercentage)}%</Text>
           </View>
@@ -490,13 +489,13 @@ const styles = {
     borderBottomColor: '#F0F0F0',
   },
   headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: '#1A1A1A',
     letterSpacing: 0.3,
   },
@@ -506,8 +505,8 @@ const styles = {
     marginTop: 4,
   },
   headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     gap: 16,
   },
   helpButton: {
@@ -518,15 +517,15 @@ const styles = {
     borderColor: '#FF8800',
   },
   headerStats: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 20,
   },
   statItem: {
-    alignItems: 'center',
+    alignItems: 'center' as const,
   },
   statNumber: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: '#FF6B00',
   },
   statLabel: {
@@ -544,14 +543,14 @@ const styles = {
     borderBottomColor: '#F0F0F0',
   },
   searchContainer: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 12,
     marginBottom: 16,
   },
   searchInputContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     backgroundColor: '#F8F9FA',
     borderRadius: 12,
     paddingHorizontal: 16,
@@ -572,24 +571,24 @@ const styles = {
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
   searchButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
 
   // Quick Actions
   quickActions: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 8,
     marginBottom: 16,
   },
   quickActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     paddingHorizontal: 12,
     paddingVertical: 8,
     backgroundColor: '#F8F9FA',
@@ -604,7 +603,7 @@ const styles = {
   quickActionText: {
     fontSize: 12,
     color: '#FF6B00',
-    fontWeight: '500',
+    fontWeight: '500' as const,
   },
   quickActionTextDisabled: {
     color: '#CCC',
@@ -612,8 +611,8 @@ const styles = {
 
   // Progress Bar
   progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     gap: 8,
   },
   progressBar: {
@@ -631,7 +630,7 @@ const styles = {
     fontSize: 12,
     color: '#666',
     minWidth: 35,
-    textAlign: 'right',
+    textAlign: 'right' as const,
   },
 
   // Scroll Container
@@ -649,8 +648,8 @@ const styles = {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#FFD0D0',
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     gap: 12,
   },
   errorText: {
@@ -667,13 +666,13 @@ const styles = {
   errorButtonText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '500' as const,
   },
 
   // Loading
   loadingContainer: {
     padding: 40,
-    alignItems: 'center',
+    alignItems: 'center' as const,
   },
   loadingText: {
     fontSize: 16,
@@ -696,8 +695,8 @@ const styles = {
     shadowRadius: 4,
   },
   cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     marginBottom: 16,
   },
   userAvatar: {
@@ -705,21 +704,21 @@ const styles = {
     height: 40,
     borderRadius: 20,
     backgroundColor: '#FF6B00',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     marginRight: 12,
   },
   avatarText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
   userInfo: {
     flex: 1,
   },
   userName: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '500' as const,
     color: '#1A1A1A',
     marginBottom: 2,
   },
@@ -733,13 +732,13 @@ const styles = {
     paddingVertical: 2,
     backgroundColor: '#E8F5E8',
     borderRadius: 12,
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-start' as const,
   },
   statusText: {
     fontSize: 11,
     color: '#2E7D2E',
-    fontWeight: '500',
-    textTransform: 'capitalize',
+    fontWeight: '500' as const,
+    textTransform: 'capitalize' as const,
   },
 
   cardContent: {
@@ -751,12 +750,12 @@ const styles = {
   sectionLabel: {
     fontSize: 14,
     color: '#666',
-    fontWeight: '500',
+    fontWeight: '500' as const,
   },
 
   // Role Selector
   roleSelector: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 8,
   },
   roleOption: {
@@ -774,7 +773,7 @@ const styles = {
   roleOptionText: {
     fontSize: 12,
     color: '#666',
-    fontWeight: '500',
+    fontWeight: '500' as const,
   },
   roleOptionTextSelected: {
     color: '#FFFFFF',
@@ -785,9 +784,9 @@ const styles = {
     gap: 12,
   },
   primaryAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     backgroundColor: '#FF6B00',
     paddingVertical: 12,
     borderRadius: 8,
@@ -796,17 +795,17 @@ const styles = {
   primaryActionText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
   secondaryActions: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 8,
   },
   suspendAction: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     backgroundColor: '#FFF4E6',
     paddingVertical: 10,
     borderRadius: 8,
@@ -817,13 +816,13 @@ const styles = {
   suspendActionText: {
     color: '#FF8800',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '500' as const,
   },
   deleteAction: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     backgroundColor: '#FFE8E8',
     paddingVertical: 10,
     borderRadius: 8,
@@ -834,7 +833,7 @@ const styles = {
   deleteActionText: {
     color: '#FF4444',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '500' as const,
   },
 
   // Desktop Table View
@@ -844,7 +843,7 @@ const styles = {
   tableContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: 'hidden' as const,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -852,7 +851,7 @@ const styles = {
     shadowRadius: 4,
   },
   tableHeader: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     backgroundColor: '#F8F9FA',
     paddingVertical: 16,
     paddingHorizontal: 16,
@@ -861,21 +860,21 @@ const styles = {
   },
   tableHeaderText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: '#666',
-    textTransform: 'uppercase',
+    textTransform: 'uppercase' as const,
     letterSpacing: 0.5,
   },
   tableRow: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     paddingVertical: 16,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
   tableCell: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
   },
   tableCellText: {
     fontSize: 14,
@@ -894,18 +893,18 @@ const styles = {
     height: 32,
     borderRadius: 16,
     backgroundColor: '#FF6B00',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     marginRight: 12,
   },
   avatarTextSmall: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
   tableUserName: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '500' as const,
     color: '#1A1A1A',
     marginBottom: 2,
   },
@@ -914,18 +913,18 @@ const styles = {
     paddingVertical: 1,
     backgroundColor: '#E8F5E8',
     borderRadius: 8,
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-start' as const,
   },
   tableStatusText: {
     fontSize: 10,
     color: '#2E7D2E',
-    fontWeight: '500',
-    textTransform: 'capitalize',
+    fontWeight: '500' as const,
+    textTransform: 'capitalize' as const,
   },
 
   // Table Actions
   tableActionsContainer: {
-    flexDirection: 'row',
+    flexDirection: 'row' as const,
     gap: 8,
   },
   tableAction: {
@@ -933,29 +932,29 @@ const styles = {
     height: 32,
     borderRadius: 16,
     backgroundColor: '#F8F9FA',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
 
   // Empty State
   emptyState: {
-    alignItems: 'center',
+    alignItems: 'center' as const,
     paddingVertical: 60,
     paddingHorizontal: 40,
   },
   emptyText: {
     fontSize: 18,
     color: '#666',
-    fontWeight: '500',
+    fontWeight: '500' as const,
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
     color: '#999',
-    textAlign: 'center',
+    textAlign: 'center' as const,
   },
 };
 

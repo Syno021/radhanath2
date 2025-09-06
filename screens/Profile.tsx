@@ -28,7 +28,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  "Profile"
+  keyof RootStackParamList
 >;
 
 interface UserData {
@@ -1343,31 +1343,31 @@ const styles = {
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-end' as const,
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '80%',
+    maxHeight: '80%' as any,
     paddingBottom: 20,
   },
   modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#EEE',
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: 'bold' as const,
     color: '#333',
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     margin: 20,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -1394,7 +1394,7 @@ const styles = {
   },
   bookItemTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: '#333',
     marginBottom: 4,
   },
@@ -1412,8 +1412,8 @@ const styles = {
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#FFE4CC',
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
   },
   interestText: {
     fontSize: 14,
@@ -1423,7 +1423,7 @@ const styles = {
   removeInterest: {
     fontSize: 16,
     color: '#FF6B00',
-    fontWeight: '600',
+    fontWeight: '600' as const,
   },
   section: {
     backgroundColor: '#FFFFFF',
@@ -1438,7 +1438,7 @@ const styles = {
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '500',
+    fontWeight: '500' as const,
     color: '#FF6B00',
     marginBottom: 16
   },

@@ -305,10 +305,10 @@ export default function AdminAddBooks() {
         const rows = text.split('\n');
         const headers = rows[0].split(',');
         
-        books = rows.slice(1).map(row => {
+        books = rows.slice(1).map((row: string) => {
           const values = row.split(',');
           const book: any = {};
-          headers.forEach((header, index) => {
+          headers.forEach((header: string, index: number) => {
             book[header.trim()] = values[index]?.trim();
           });
           return book;
@@ -1172,8 +1172,6 @@ guideStep: {
     fontSize: 12,
     color: '#999',
     fontWeight: '400',
-  },
-  helpButton: {
-    padding: 4,
-  },
+  }
+  // End of object literal
 });

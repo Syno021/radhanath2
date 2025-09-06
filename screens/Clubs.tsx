@@ -80,7 +80,7 @@ export default function ReadingClubsScreen() {
     return clubs.filter(club => 
       club.name.toLowerCase().includes(lowercaseSearch) ||
       club.description.toLowerCase().includes(lowercaseSearch) ||
-      club.currentBook?.toLowerCase().includes(lowercaseSearch) ||
+      club.currentBookId?.toLowerCase().includes(lowercaseSearch) ||
       club.schedule.day.toLowerCase().includes(lowercaseSearch) ||
       club.schedule.frequency.toLowerCase().includes(lowercaseSearch)
     );
@@ -136,7 +136,7 @@ export default function ReadingClubsScreen() {
           )}
         </View>
         
-        <View styles={styles.cardContent}>
+        <View style={styles.cardContent}>
           <Text style={[styles.cardTitle, index === 0 && styles.featuredTitle]} numberOfLines={2}>
             {item.name}
           </Text>
@@ -144,11 +144,11 @@ export default function ReadingClubsScreen() {
             {item.description}
           </Text>
           
-          {item.currentBook && (
+          {item.currentBookId && (
             <View style={styles.bookInfoSection}>
               <Ionicons name="bookmark-outline" size={14} color="rgba(255, 255, 255, 0.8)" />
               <Text style={styles.bookInfoText} numberOfLines={1}>
-                {item.currentBook}
+                {item.currentBookId}
               </Text>
             </View>
           )}
@@ -507,15 +507,15 @@ cardGradient: {
 },
 
 cardHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  marginBottom: 'auto', // Changed from fixed 16 to auto to push content to bottom
+  flexDirection: 'row' as const,
+  justifyContent: 'space-between' as const,
+  alignItems: 'flex-start' as const,
+  marginBottom: 0,
 },
 
 cardContent: {
   flex: 1,
-  justifyContent: 'flex-end', // Push content to bottom instead of space-between
+  justifyContent: 'flex-end' as const, // Push content to bottom instead of space-between
 },
   iconContainer: {
     width: 50,

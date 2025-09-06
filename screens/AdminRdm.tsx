@@ -207,9 +207,8 @@ const AdminRegions: React.FC = () => {
           <Text style={styles.headerTitle}>Regions</Text>
           <Text style={styles.headerSubtitle}>BBT Africa Connect - Admin</Text>
         </View>
-        <View style={styles.headerActions}>
+        <View style={styles.headerIcon}>
           <TouchableOpacity 
-            style={styles.helpButton}
             onPress={() => setShowGuide(true)}
           >
             <Ionicons name="help-circle-outline" size={24} color="#FF6B00" />
