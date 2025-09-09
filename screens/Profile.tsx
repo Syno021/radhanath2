@@ -5,21 +5,21 @@ import { signOut, updateProfile, User } from "firebase/auth";
 import { collection, doc, getDocs, onSnapshot, orderBy, query, updateDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  RefreshControl,
-  ScrollView,
-  StatusBar,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  useWindowDimensions,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    RefreshControl,
+    ScrollView,
+    StatusBar,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
 } from "react-native";
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { RootStackParamList } from "../app/navigation/AppNavigator";
@@ -27,7 +27,6 @@ import { auth, db } from "../firebaseCo";
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  keyof RootStackParamList
   keyof RootStackParamList
 >;
 
