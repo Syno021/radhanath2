@@ -28,6 +28,7 @@ import { auth, db } from "../firebaseCo";
 type ProfileScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   keyof RootStackParamList
+  keyof RootStackParamList
 >;
 
 interface UserData {
@@ -1343,6 +1344,7 @@ const styles = {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end' as const,
+    justifyContent: 'flex-end' as const,
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
@@ -1355,6 +1357,9 @@ const styles = {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     justifyContent: 'space-between' as const,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#EEE',
@@ -1362,9 +1367,12 @@ const styles = {
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold' as const,
+    fontWeight: 'bold' as const,
     color: '#333',
   },
   searchContainer: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     margin: 20,
@@ -1394,6 +1402,7 @@ const styles = {
   bookItemTitle: {
     fontSize: 16,
     fontWeight: '600' as const,
+    fontWeight: '600' as const,
     color: '#333',
     marginBottom: 4,
   },
@@ -1413,6 +1422,8 @@ const styles = {
     borderColor: '#FFE4CC',
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
   },
   interestText: {
     fontSize: 14,
@@ -1422,6 +1433,7 @@ const styles = {
   removeInterest: {
     fontSize: 16,
     color: '#FF6B00',
+    fontWeight: '600' as const,
     fontWeight: '600' as const,
   },
   section: {
@@ -1437,6 +1449,7 @@ const styles = {
   },
   sectionTitle: {
     fontSize: 18,
+    fontWeight: '500' as const,
     fontWeight: '500' as const,
     color: '#FF6B00',
     marginBottom: 16
