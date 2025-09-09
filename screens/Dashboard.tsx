@@ -137,7 +137,25 @@ export default function Dashboard() {
     }
   };
 
-  const StatCard = ({ icon, title, value, color, subtitle = "", emoji = "", isWide = false }) => (
+  type StatCardProps = {
+    icon: string;
+    title: string;
+    value: number;
+    color: string;
+    subtitle?: string;
+    emoji?: string;
+    isWide?: boolean;
+  };
+
+  const StatCard: React.FC<StatCardProps> = ({
+    icon,
+    title,
+    value,
+    color,
+    subtitle = "",
+    emoji = "",
+    isWide = false,
+  }) => (
     <View style={{
       backgroundColor: '#FFFFFF',
       borderRadius: 12,
@@ -163,7 +181,7 @@ export default function Dashboard() {
           {emoji ? (
             <Text style={{ fontSize: 16 }}>{emoji}</Text>
           ) : (
-            <Ionicons name={icon} size={18} color={color} />
+            <Ionicons size={18} color={color} />
           )}
         </View>
         <View style={{ flex: 1 }}>
@@ -309,19 +327,17 @@ export default function Dashboard() {
               
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
                 <StatCard
-                  emoji="👥"
-                  title="Total Devotees"
-                  value={stats.totalUsers}
-                  color="#FF6B00"
-                  subtitle={`${stats.activeUsers} active this month`}
-                />
+                    emoji="👥"
+                    title="Total Devotees"
+                    value={stats.totalUsers}
+                    color="#FF6B00"
+                    subtitle={`${stats.activeUsers} active this month`} icon={""}                />
                 <StatCard
-                  emoji="📖"
-                  title="Reading Circles"
-                  value={stats.totalClubs}
-                  color="#4CAF50"
-                  subtitle={`${stats.activeClubs} currently active`}
-                />
+                    emoji="📖"
+                    title="Reading Circles"
+                    value={stats.totalClubs}
+                    color="#4CAF50"
+                    subtitle={`${stats.activeClubs} currently active`} icon={""}                />
               </View>
 
               {/* Special highlight card */}
@@ -383,29 +399,25 @@ export default function Dashboard() {
               
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                 <StatCard
-                  emoji="📚"
-                  title="Sacred Books"
-                  value={stats.totalBooks}
-                  color="#2196F3"
-                />
+                    emoji="📚"
+                    title="Sacred Books"
+                    value={stats.totalBooks}
+                    color="#2196F3" icon={""}                />
                 <StatCard
-                  emoji="⭐"
-                  title="Total Points"
-                  value={stats.totalBookPoints}
-                  color="#9C27B0"
-                />
+                    emoji="⭐"
+                    title="Total Points"
+                    value={stats.totalBookPoints}
+                    color="#9C27B0" icon={""}                />
                 <StatCard
-                  emoji="📅"
-                  title="Books This Month"
-                  value={stats.booksThisMonth}
-                  color="#FF9800"
-                />
+                    emoji="📅"
+                    title="Books This Month"
+                    value={stats.booksThisMonth}
+                    color="#FF9800" icon={""}                />
                 <StatCard
-                  emoji="📊"
-                  title="Avg Books/Club"
-                  value={stats.avgBooksPerClub}
-                  color="#607D8B"
-                />
+                    emoji="📊"
+                    title="Avg Books/Club"
+                    value={stats.avgBooksPerClub}
+                    color="#607D8B" icon={""}                />
               </View>
             </View>
 
@@ -423,29 +435,25 @@ export default function Dashboard() {
               
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                 <StatCard
-                  emoji="🗺️"
-                  title="Active Regions"
-                  value={stats.totalRegions}
-                  color="#00BCD4"
-                />
+                    emoji="🗺️"
+                    title="Active Regions"
+                    value={stats.totalRegions}
+                    color="#00BCD4" icon={""}                />
                 <StatCard
-                  emoji="🤝"
-                  title="Total Members"
-                  value={stats.totalMembers}
-                  color="#795548"
-                />
+                    emoji="🤝"
+                    title="Total Members"
+                    value={stats.totalMembers}
+                    color="#795548" icon={""}                />
                 <StatCard
-                  emoji="💬"
-                  title="WhatsApp Groups"
-                  value={stats.totalGroups}
-                  color="#25D366"
-                />
+                    emoji="💬"
+                    title="WhatsApp Groups"
+                    value={stats.totalGroups}
+                    color="#25D366" icon={""}                />
                 <StatCard
-                  emoji="👨‍👩‍👧‍👦"
-                  title="Avg Members/Club"
-                  value={stats.avgMembersPerClub}
-                  color="#FF5722"
-                />
+                    emoji="👨‍👩‍👧‍👦"
+                    title="Avg Members/Club"
+                    value={stats.avgMembersPerClub}
+                    color="#FF5722" icon={""}                />
               </View>
             </View>
 

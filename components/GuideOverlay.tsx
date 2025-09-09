@@ -1,19 +1,18 @@
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  ScrollView,
-  Dimensions,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { Ionicons } from "@expo/vector-icons";
 
 interface GuideStep {
   title: string;
   description: string;
-  icon?: string;
+  icon: string;
 }
 
 interface GuideOverlayProps {
@@ -37,22 +36,20 @@ const GuideOverlay: React.FC<GuideOverlayProps> = ({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.content}>
+        <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.headerText}>How to use {screenName}</Text>
+            <Text style={styles.title}>{screenName} Guide</Text>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color="#666" />
             </TouchableOpacity>
           </View>
-
-          <ScrollView style={styles.stepsContainer}>
+          
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {steps.map((step, index) => (
               <View key={index} style={styles.step}>
-                {step.icon && (
-                  <View style={styles.iconContainer}>
-                    <Ionicons name={step.icon as any} size={24} color="#FF6B00" />
-                  </View>
-                )}
+                <View style={styles.stepIcon}>
+                  <Ionicons name={step.icon as any} size={24} color="#FF6B00" />
+                </View>
                 <View style={styles.stepContent}>
                   <Text style={styles.stepTitle}>{step.title}</Text>
                   <Text style={styles.stepDescription}>{step.description}</Text>
@@ -60,9 +57,9 @@ const GuideOverlay: React.FC<GuideOverlayProps> = ({
               </View>
             ))}
           </ScrollView>
-
+          
           <TouchableOpacity style={styles.gotItButton} onPress={onClose}>
-            <Text style={styles.gotItText}>Got it!</Text>
+            <Text style={styles.gotItButtonText}>Got it!</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -78,12 +75,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  content: {
+  container: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     width: '100%',
-    maxWidth: 500,
-    maxHeight: Dimensions.get('window').height * 0.8,
+    maxWidth: 400,
+    maxHeight: '80%',
   },
   header: {
     flexDirection: 'row',
@@ -91,28 +88,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
+    borderBottomColor: '#E0E0E0',
   },
-  headerText: {
-    fontSize: 20,
+  title: {
+    fontSize: 18,
     fontWeight: '600',
     color: '#1A1A1A',
   },
   closeButton: {
     padding: 4,
   },
-  stepsContainer: {
+  content: {
     padding: 20,
   },
   step: {
     flexDirection: 'row',
-    marginBottom: 24,
+    marginBottom: 20,
   },
-  iconContainer: {
+  stepIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
     backgroundColor: '#FFF4E6',
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -122,9 +119,9 @@ const styles = StyleSheet.create({
   },
   stepTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#1A1A1A',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   stepDescription: {
     fontSize: 14,
@@ -132,13 +129,13 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   gotItButton: {
-    margin: 20,
     backgroundColor: '#FF6B00',
-    padding: 16,
+    margin: 20,
+    paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
-  gotItText: {
+  gotItButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',

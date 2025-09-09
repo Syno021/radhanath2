@@ -14,7 +14,6 @@ export type UserTabParamList = {
 };
 
 const Tab = createBottomTabNavigator<UserTabParamList>();
-const { TailwindProvider } = require("nativewind");
 
 export default function UserTabs() {
   return (

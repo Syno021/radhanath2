@@ -1,5 +1,6 @@
 //models/user.model.ts
 export interface User {
+  status: string;
   uid: string;
   email: string;
   displayName: string;

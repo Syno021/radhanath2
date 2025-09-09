@@ -59,10 +59,8 @@ export default function Explore() {
 
   // Function to generate initials from user data
   const generateInitials = (user: User | null, firebaseUser: FirebaseUser | null): string => {
-    if (user?.firstName && user?.lastName) {
-      return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
-    } else if (user?.displayName) {
-      const names = user.displayName.split(' ');
+    if (user && typeof user.displayName === 'string' && user.displayName.trim().length > 0) {
+      const names = user.displayName.trim().split(/\s+/);
       if (names.length >= 2) {
         return `${names[0].charAt(0)}${names[1].charAt(0)}`.toUpperCase();
       }
@@ -152,12 +150,26 @@ export default function Explore() {
 
         const results = await Promise.all(statsPromises);
         
-        const newStats = { ...stats, loading: false };
+        const newStats: FirebaseStats = {
+          ...stats,
+          loading: false,
+          users: 0,
+          books: 0,
+          regions: 0,
+          temples: 0,
+          whatsappGroups: 0,
+          readingClubs: 0,
+          bookReports: 0,
+        };
         results.forEach(result => {
-          newStats[result.key as keyof FirebaseStats] = result.count;
+          // Only assign if the key exists in FirebaseStats
+          if (result.key in newStats) {
+            (newStats as any)[result.key] = result.count;
+          }
         });
 
         setStats(newStats);
+        console.error('Error fetching statistics:', Error);
       } catch (error) {
         console.error('Error fetching statistics:', error);
         setStats(prev => ({ ...prev, loading: false }));
@@ -165,8 +177,6 @@ export default function Explore() {
     };
 
     fetchStats();
-
-    // Set up real-time listeners for collections that change frequently
     const unsubscribers: (() => void)[] = [];
 
     // Listen to users collection changes
@@ -304,9 +314,7 @@ export default function Explore() {
 
   // Get display name for greeting
   const getDisplayName = (): string => {
-    if (userData?.firstName) {
-      return userData.firstName;
-    } else if (userData?.displayName) {
+ if (userData?.displayName) {
       return userData.displayName.split(' ')[0];
     } else if (currentUser?.displayName) {
       return currentUser.displayName.split(' ')[0];
@@ -482,7 +490,7 @@ const styles = {
   welcomeSection: {
     paddingHorizontal: 24,
     paddingVertical: 30,
-    alignItems: 'center'
+    alignItems: 'center' as const
   },
   welcomeTitle: {
     fontSize: 32,
@@ -585,7 +593,7 @@ const styles = {
   },
   statsSectionTitle: {
     fontSize: 20,
-    fontWeight: '400',
+    fontWeight: '400' as const,
     color: '#1A1A1A',
     marginBottom: 24,
     letterSpacing: 0.3
@@ -598,7 +606,7 @@ const styles = {
     marginTop: 12,
     fontSize: 14,
     color: '#666',
-    fontWeight: '300',
+    fontWeight: '300' as const,
   },
   statsGrid: {
     flexDirection: 'row' as const,

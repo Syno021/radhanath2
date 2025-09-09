@@ -510,7 +510,7 @@ const styles = {
   // Also update the cardContent style to ensure proper spacing:
   cardContent: {
     flex: 1,
-    justifyContent: 'flex-end', // Push content to bottom instead of space-between
+    justifyContent: 'flex-end' as const, // Push content to bottom instead of space-between
   },
 
   // And update cardHeader to have proper spacing:
@@ -518,7 +518,7 @@ const styles = {
     flexDirection: 'row' as const,
     justifyContent: 'space-between' as const,
     alignItems: 'flex-start' as const,
-    marginBottom: 'auto', // This will push the header to top and content to bottom
+    marginBottom: 0,
   },
   iconContainer: {
     width: 50,

@@ -196,8 +196,7 @@ export default function UserWhatsappGroups() {
       <View style={[
         styles.cardGradient, 
         { 
-          backgroundColor: '#FF6B00',
-          background: 'linear-gradient(135deg, #FF6B00 0%, #d45900ff 100%)'
+          backgroundColor: '#FF6B00'
         }
       ]}>
         <View style={styles.cardHeader}>
@@ -484,7 +483,7 @@ const styles = {
   },
   exploreCard: {
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: 'hidden' as const,
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },

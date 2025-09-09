@@ -1,34 +1,33 @@
-import React, { useState, useEffect } from "react";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import * as DocumentPicker from 'expo-document-picker';
+import { onAuthStateChanged } from "firebase/auth";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  where
+} from "firebase/firestore";
+import React, { useEffect, useState } from "react";
+import {
   ActivityIndicator,
-  StatusBar,
+  Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import * as XLSX from 'xlsx';
 import { RootStackParamList } from "../app/navigation/AppNavigator";
-import { useNavigation } from "@react-navigation/native";
 import { auth, db } from "../firebaseCo";
-import { 
-  collection, 
-  addDoc, 
-  serverTimestamp, 
-  doc, 
-  getDoc,
-  query,
-  where,
-  getDocs,
-  updateDoc,
-  deleteDoc
-} from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
-import DocumentPicker from 'react-native-document-picker';
-import XLSX from 'xlsx';
 
 type LoadBookScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -160,21 +159,21 @@ export default function LoadBook() {
     }
 
     try {
-      const result = await DocumentPicker.pickSingle({
-        type: [DocumentPicker.types.xlsx, DocumentPicker.types.xls],
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'],
       });
       
       setSelectedFile(result);
       Alert.alert(
         "File Selected", 
-        `${result.name} is ready to be processed.`,
+        `${result.assets?.[0]?.name} is ready to be processed.`,
         [
           { text: "Cancel", style: "cancel" },
           { text: "Process File", onPress: () => processExcelFile(result) }
         ]
       );
-    } catch (error) {
-      if (DocumentPicker.isCancel(error)) {
+    } catch (error: any) {
+      if (error?.code === 'DOCUMENT_PICKER_CANCELED') {
         console.log("User cancelled document picker");
       } else {
         Alert.alert("Error", "Failed to select document");
@@ -187,7 +186,7 @@ export default function LoadBook() {
     setLoading(true);
     try {
       // Read the Excel file
-      const data = await XLSX.readFile(file.uri);
+      const data = await XLSX.readFile(file.assets?.[0]?.uri);
       const worksheet = data.Sheets[data.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
@@ -235,7 +234,7 @@ export default function LoadBook() {
         `Found ${processedBooks.length} books\nTotal BBT Books: ${totalBBTBooks}\nTotal Points: ${totalPoints}`,
         [
           { text: "Review Data", onPress: () => {} },
-          { text: "Save to Database", onPress: () => saveMonthlyReport(processedBooks, file.name) }
+          { text: "Save to Database", onPress: () => saveMonthlyReport(processedBooks, file.assets?.[0]?.name || 'unknown') }
         ]
       );
 
