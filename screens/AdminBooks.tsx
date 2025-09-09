@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import GuideOverlay from '../components/GuideOverlay';
 import { auth, db } from "../firebaseCo";
+import { ReportGenerationService, ReportStatistics } from '../services/ReportGenerationService';
 
 interface Book {
   id: string;
@@ -279,12 +280,15 @@ export default function AdminBookLogging() {
   const [uploading, setUploading] = useState(false);
   const [loadingBooks, setLoadingBooks] = useState(false);
   const [loadingReports, setLoadingReports] = useState(false);
+  const [generatingReport, setGeneratingReport] = useState(false);
   const [reports, setReports] = useState<MonthlyReport[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [isManualEntry, setIsManualEntry] = useState(false);
   const [expandedReports, setExpandedReports] = useState<Record<string, boolean>>({});
   const [showGuide, setShowGuide] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [statistics, setStatistics] = useState<ReportStatistics | null>(null);
   
   const [currentReport, setCurrentReport] = useState<Partial<MonthlyReport>>({
     month: MONTHS[new Date().getMonth()],
@@ -305,6 +309,13 @@ export default function AdminBookLogging() {
     fetchReports();
     fetchBooks();
   }, []);
+
+  useEffect(() => {
+    if (reports.length > 0) {
+      const stats = ReportGenerationService.generateStatistics(reports);
+      setStatistics(stats);
+    }
+  }, [reports]);
 
   useEffect(() => {
     if (reports && reports.length > 0) {
@@ -653,6 +664,132 @@ export default function AdminBookLogging() {
     }
   };
 
+  const handleGeneratePDFReport = async (reportType: 'summary' | 'detailed' = 'summary') => {
+    console.log('Starting PDF report generation...', { reportType, reportsCount: reports.length });
+    
+    if (reports.length === 0) {
+      Alert.alert('No Data', 'No reports available to generate statistics');
+      return;
+    }
+
+    setGeneratingReport(true);
+    try {
+      console.log('Calling ReportGenerationService.generateAndSharePDF...');
+      await ReportGenerationService.generateAndSharePDF(reports, reportType);
+      console.log('PDF report generation completed successfully');
+      Alert.alert(
+        'Success', 
+        'PDF report generated successfully! 📊\n\nIf the download didn\'t start automatically, check your browser\'s download folder or try right-clicking and "Save as..." on any download links.',
+        [{ text: 'OK', style: 'default' }]
+      );
+    } catch (error: any) {
+      console.error('PDF report generation failed:', error);
+      Alert.alert('Error', 'Failed to generate PDF report: ' + error.message);
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
+  const handleGenerateExcelReport = async () => {
+    console.log('Starting Excel report generation...', { reportsCount: reports.length });
+    
+    if (reports.length === 0) {
+      Alert.alert('No Data', 'No reports available to generate statistics');
+      return;
+    }
+
+    setGeneratingReport(true);
+    try {
+      console.log('Calling ReportGenerationService.generateAndShareExcel...');
+      await ReportGenerationService.generateAndShareExcel(reports);
+      console.log('Excel report generation completed successfully');
+      Alert.alert(
+        'Success', 
+        'Excel report generated successfully! 📈\n\nIf the download didn\'t start automatically, check your browser\'s download folder or try right-clicking and "Save as..." on any download links.',
+        [{ text: 'OK', style: 'default' }]
+      );
+    } catch (error: any) {
+      console.error('Excel report generation failed:', error);
+      Alert.alert('Error', 'Failed to generate Excel report: ' + error.message);
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
+  const showReportOptions = () => {
+    if (reports.length === 0) {
+      Alert.alert('No Data', 'No reports available to generate statistics');
+      return;
+    }
+    setShowReportModal(true);
+  };
+
+  // Test function to debug report generation
+  const testReportGeneration = async () => {
+    console.log('=== TESTING REPORT GENERATION ===');
+    console.log('Reports available:', reports.length);
+    console.log('Reports data:', reports);
+    
+    if (reports.length === 0) {
+      console.log('No reports available for testing');
+      Alert.alert('Test Failed', 'No reports available for testing. Please add some book reports first.');
+      return;
+    }
+
+    try {
+      console.log('Testing statistics generation...');
+      const stats = ReportGenerationService.generateStatistics(reports);
+      console.log('Statistics test successful:', stats);
+      
+      Alert.alert('Test Success', `Statistics generated successfully!\n\nTotal Reports: ${stats.totalReports}\nTotal Books: ${stats.totalBooksDistributed}\nTotal Points: ${stats.totalPointsEarned}`);
+    } catch (error: any) {
+      console.error('Statistics test failed:', error);
+      Alert.alert('Test Failed', 'Statistics generation failed: ' + error.message);
+    }
+  };
+
+  // Manual download function for when automatic download fails
+  const handleManualDownload = async (type: 'pdf' | 'excel', reportType: 'summary' | 'detailed' = 'summary') => {
+    if (reports.length === 0) {
+      Alert.alert('No Data', 'No reports available to generate statistics');
+      return;
+    }
+
+    setGeneratingReport(true);
+    try {
+      let downloadUrl: string;
+      let fileName: string;
+      
+      if (type === 'excel') {
+        downloadUrl = await ReportGenerationService.generateExcelDownloadUrl(reports);
+        fileName = `BBT_Book_Distribution_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+      } else {
+        downloadUrl = await ReportGenerationService.generatePDFDownloadUrl(reports, reportType);
+        fileName = `BBT_Book_Distribution_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+      }
+
+      // Create a temporary link for manual download
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      Alert.alert(
+        'Download Link Created', 
+        `${type.toUpperCase()} report generated!\n\nIf the download didn't start, right-click the link and select "Save as..." or check your browser's download folder.`,
+        [{ text: 'OK', style: 'default' }]
+      );
+    } catch (error: any) {
+      console.error(`${type} manual download failed:`, error);
+      Alert.alert('Error', `Failed to generate ${type} report: ` + error.message);
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
   const guideSteps = [
     {
       title: "Select Report Period",
@@ -911,6 +1048,59 @@ export default function AdminBookLogging() {
           </TouchableOpacity>
         </View>
 
+        {/* Report Generation */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Generate Statistics Report</Text>
+          <Text style={styles.description}>
+            Generate comprehensive PDF or Excel reports with detailed statistics from all your book distribution data.
+          </Text>
+          
+          {statistics && (
+            <View style={styles.statsPreview}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{statistics.totalReports}</Text>
+                <Text style={styles.statLabel}>Total Reports</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{statistics.totalBooksDistributed.toLocaleString()}</Text>
+                <Text style={styles.statLabel}>Books Distributed</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{statistics.totalPointsEarned.toLocaleString()}</Text>
+                <Text style={styles.statLabel}>Points Earned</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{statistics.bbtVsOtherBooks.bbtPercentage.toFixed(1)}%</Text>
+                <Text style={styles.statLabel}>BBT Books</Text>
+              </View>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.primaryButton, generatingReport && styles.buttonDisabled]}
+            onPress={showReportOptions}
+            disabled={generatingReport}
+          >
+            {generatingReport ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="analytics-outline" size={20} color="#FFFFFF" />
+                <Text style={styles.buttonText}>Generate Report</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* Debug Test Button */}
+          <TouchableOpacity
+            style={[styles.secondaryButton, { marginTop: 12 }]}
+            onPress={testReportGeneration}
+          >
+            <Ionicons name="bug-outline" size={20} color="#FF6B00" />
+            <Text style={styles.secondaryButtonText}>Test Report Generation</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Reports History */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Reports History ({reports.length})</Text>
@@ -984,6 +1174,154 @@ export default function AdminBookLogging() {
           )}
         </View>
       </ScrollView>
+
+      {/* Report Generation Modal */}
+      <Modal
+        visible={showReportModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity 
+              style={styles.closeButton} 
+              onPress={() => setShowReportModal(false)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Generate Report</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <View style={styles.reportOptionsContainer}>
+              <Text style={styles.reportOptionsTitle}>Choose Report Format</Text>
+              <Text style={styles.reportOptionsDescription}>
+                Select the format for your comprehensive statistics report
+              </Text>
+
+              {/* PDF Options */}
+              <View style={styles.reportOptionCard}>
+                <View style={styles.reportOptionHeader}>
+                  <Ionicons name="document-text-outline" size={24} color="#FF6B00" />
+                  <Text style={styles.reportOptionTitle}>PDF Report</Text>
+                </View>
+                <Text style={styles.reportOptionDescription}>
+                  Professional PDF with charts, tables, and executive summary
+                </Text>
+                
+                <View style={styles.reportOptionButtons}>
+                  <TouchableOpacity
+                    style={[styles.reportOptionButton, styles.summaryButton]}
+                    onPress={() => {
+                      setShowReportModal(false);
+                      handleGeneratePDFReport('summary');
+                    }}
+                    disabled={generatingReport}
+                  >
+                    <Ionicons name="analytics-outline" size={18} color="#FFFFFF" />
+                    <Text style={styles.reportOptionButtonText}>Summary Report</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.reportOptionButton, styles.detailedButton]}
+                    onPress={() => {
+                      setShowReportModal(false);
+                      handleGeneratePDFReport('detailed');
+                    }}
+                    disabled={generatingReport}
+                  >
+                    <Ionicons name="list-outline" size={18} color="#FFFFFF" />
+                    <Text style={styles.reportOptionButtonText}>Detailed Report</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={styles.reportOptionButtons}>
+                  <TouchableOpacity
+                    style={[styles.reportOptionButton, styles.manualButton]}
+                    onPress={() => {
+                      setShowReportModal(false);
+                      handleManualDownload('pdf', 'summary');
+                    }}
+                    disabled={generatingReport}
+                  >
+                    <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+                    <Text style={styles.reportOptionButtonText}>Manual PDF Download</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Excel Option */}
+              <View style={styles.reportOptionCard}>
+                <View style={styles.reportOptionHeader}>
+                  <Ionicons name="grid-outline" size={24} color="#4CAF50" />
+                  <Text style={styles.reportOptionTitle}>Excel Report</Text>
+                </View>
+                <Text style={styles.reportOptionDescription}>
+                  Comprehensive spreadsheet with multiple sheets for detailed analysis
+                </Text>
+                
+                <TouchableOpacity
+                  style={[styles.reportOptionButton, styles.excelButton]}
+                  onPress={() => {
+                    setShowReportModal(false);
+                    handleGenerateExcelReport();
+                  }}
+                  disabled={generatingReport}
+                >
+                  <Ionicons name="grid-outline" size={18} color="#FFFFFF" />
+                  <Text style={styles.reportOptionButtonText}>Generate Excel Report</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.reportOptionButton, styles.manualButton]}
+                  onPress={() => {
+                    setShowReportModal(false);
+                    handleManualDownload('excel');
+                  }}
+                  disabled={generatingReport}
+                >
+                  <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+                  <Text style={styles.reportOptionButtonText}>Manual Excel Download</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Report Features */}
+              <View style={styles.featuresContainer}>
+                <Text style={styles.featuresTitle}>Report Includes:</Text>
+                <View style={styles.featuresList}>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                    <Text style={styles.featureText}>Executive Summary with Key Metrics</Text>
+                  </View>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                    <Text style={styles.featureText}>Top Publishers Analysis</Text>
+                  </View>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                    <Text style={styles.featureText}>Monthly Distribution Breakdown</Text>
+                  </View>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                    <Text style={styles.featureText}>Top Distributed Books</Text>
+                  </View>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                    <Text style={styles.featureText}>BBT vs Other Books Analysis</Text>
+                  </View>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                    <Text style={styles.featureText}>Year-over-Year Comparison</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1547,5 +1885,147 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
     borderColor: '#FFE4CC',
+  },
+
+  // Report Generation Styles
+  statsPreview: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF4E6',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FFE4CC',
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FF6B00',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
+
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+
+  // Report Options Styles
+  reportOptionsContainer: {
+    flex: 1,
+  },
+  reportOptionsTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  reportOptionsDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  reportOptionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  reportOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reportOptionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 12,
+  },
+  reportOptionDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  reportOptionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  reportOptionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  summaryButton: {
+    backgroundColor: '#FF6B00',
+  },
+  detailedButton: {
+    backgroundColor: '#FF8C42',
+  },
+  excelButton: {
+    backgroundColor: '#4CAF50',
+  },
+  manualButton: {
+    backgroundColor: '#9C27B0',
+  },
+  reportOptionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Features Styles
+  featuresContainer: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+  },
+  featuresTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  featuresList: {
+    gap: 8,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  featureText: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
   },
 });

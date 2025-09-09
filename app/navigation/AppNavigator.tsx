@@ -1,12 +1,13 @@
-import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import React from "react";
+import ForgotPassword from "../../screens/ForgotPassword";
 import Home from "../../screens/Home";
-import UserTabs from "./UserTabs";
-import AdminTabs from "./AdminTabs";
 import Login from "../../screens/Login";
 import Register from "../../screens/Register";
 import About from "../../screens/about";
+import AdminTabs from "./AdminTabs";
+import UserTabs from "./UserTabs";
 
 
 
@@ -17,6 +18,7 @@ export type RootStackParamList = {
   AdminTabs: undefined;
   Login: undefined;
   Register: undefined;
+  ForgotPassword: undefined;
   LoadBook: undefined;
   About: undefined; // Added About screen
 };
@@ -33,6 +35,7 @@ export default function AppNavigator() {
         <Stack.Screen name="AdminTabs" component={AdminTabs} />
         <Stack.Screen name="Login" component={Login} />
         <Stack.Screen name="Register" component={Register} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
         <Stack.Screen name="About" component={About} /> 
       </Stack.Navigator>
     </NavigationContainer>

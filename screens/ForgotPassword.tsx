@@ -1,7 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { sendPasswordResetEmail } from "firebase/auth";
 import React, { useState } from "react";
 import {
     Alert,
@@ -16,49 +15,62 @@ import {
     View,
 } from "react-native";
 import { RootStackParamList } from "../app/navigation/AppNavigator";
-import { auth, db } from "../firebaseCo";
+import { auth } from "../firebaseCo";
 
-type LoginScreenNavigationProp = NativeStackNavigationProp<
+type ForgotPasswordScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  "Login"
+  "ForgotPassword"
 >;
 
-export default function Login() {
-  const navigation = useNavigation<LoginScreenNavigationProp>();
+export default function ForgotPassword() {
+  const navigation = useNavigation<ForgotPasswordScreenNavigationProp>();
   const { width } = useWindowDimensions();
 
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields.");
+  const handleResetPassword = async () => {
+    if (!email) {
+      Alert.alert("Error", "Please enter your email address.");
       return;
     }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert("Error", "Please enter a valid email address.");
+      return;
+    }
+
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      const userDocRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        Alert.alert("Error", "User data not found.");
-        return;
-      }
-
-      const role = userDoc.data().role;
-
-      if (role === "admin") {
-        navigation.navigate("AdminTabs");
-      } else {
-        navigation.navigate("UserTabs");
-      }
-
+      await sendPasswordResetEmail(auth, email);
+      setEmailSent(true);
+      Alert.alert(
+        "Email Sent",
+        "Password reset instructions have been sent to your email address. Please check your inbox and follow the instructions to reset your password.",
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.navigate("Login")
+          }
+        ]
+      );
     } catch (error: any) {
-      Alert.alert("Error", error.message);
+      let errorMessage = "An error occurred while sending the reset email.";
+      
+      if (error.code === "auth/user-not-found") {
+        errorMessage = "No account found with this email address.";
+      } else if (error.code === "auth/invalid-email") {
+        errorMessage = "Please enter a valid email address.";
+      } else if (error.code === "auth/too-many-requests") {
+        errorMessage = "Too many requests. Please try again later.";
+      } else if (error.code === "auth/network-request-failed") {
+        errorMessage = "Network error. Please check your internet connection.";
+      }
+      
+      Alert.alert("Error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -83,7 +95,7 @@ export default function Login() {
           backgroundColor: '#FDFCFA'
         }}>
           <TouchableOpacity 
-            onPress={() => navigation.navigate("Home")}
+            onPress={() => navigation.navigate("Login")}
             style={{
               flexDirection: 'row',
               alignItems: 'center'
@@ -137,7 +149,7 @@ export default function Login() {
               lineHeight: 36,
               marginBottom: 12
             }}>
-              Welcome Back
+              Reset Password
             </Text>
             <View style={{
               width: 40,
@@ -152,11 +164,11 @@ export default function Login() {
               lineHeight: 22,
               fontWeight: '300'
             }}>
-              Continue your spiritual journey
+              Enter your email to receive reset instructions
             </Text>
           </View>
 
-          {/* Login Form */}
+          {/* Reset Form */}
           <View style={{
             paddingHorizontal: 24,
             marginBottom: 40
@@ -173,7 +185,7 @@ export default function Login() {
             }}>
               
               {/* Email Input */}
-              <View style={{ marginBottom: 24 }}>
+              <View style={{ marginBottom: 32 }}>
                 <Text style={{
                   fontSize: 14,
                   color: '#FF6B00',
@@ -195,47 +207,17 @@ export default function Login() {
                     color: '#1A1A1A',
                     fontWeight: '400'
                   }}
-                  placeholder="Enter your email"
+                  placeholder="Enter your email address"
                   placeholderTextColor="#999"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
                   onChangeText={setEmail}
+                  editable={!emailSent}
                 />
               </View>
 
-              {/* Password Input */}
-              <View style={{ marginBottom: 32 }}>
-                <Text style={{
-                  fontSize: 14,
-                  color: '#FF6B00',
-                  fontWeight: '500',
-                  marginBottom: 8,
-                  letterSpacing: 0.3
-                }}>
-                  Password
-                </Text>
-                <TextInput
-                  style={{
-                    backgroundColor: '#FFF9F5',
-                    borderWidth: 1,
-                    borderColor: password ? '#FF6B00' : '#FFE4CC',
-                    borderRadius: 12,
-                    paddingHorizontal: 16,
-                    paddingVertical: 16,
-                    fontSize: 16,
-                    color: '#1A1A1A',
-                    fontWeight: '400'
-                  }}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#999"
-                  secureTextEntry
-                  value={password}
-                  onChangeText={setPassword}
-                />
-              </View>
-
-              {/* Login Button */}
+              {/* Reset Button */}
               <TouchableOpacity
                 style={{
                   backgroundColor: loading ? '#FFB380' : '#FF6B00',
@@ -248,8 +230,8 @@ export default function Login() {
                   shadowOpacity: 0.2,
                   shadowRadius: 8
                 }}
-                onPress={handleLogin}
-                disabled={loading}
+                onPress={handleResetPassword}
+                disabled={loading || emailSent}
                 activeOpacity={0.9}
               >
                 <Text style={{
@@ -258,17 +240,17 @@ export default function Login() {
                   fontWeight: '600',
                   letterSpacing: 0.3
                 }}>
-                  {loading ? "Signing In..." : "Sign In"}
+                  {loading ? "Sending..." : emailSent ? "Email Sent" : "Send Reset Email"}
                 </Text>
               </TouchableOpacity>
 
-              {/* Forgot Password */}
+              {/* Back to Login */}
               <TouchableOpacity
                 style={{
                   alignItems: 'center',
                   marginTop: 20
                 }}
-                onPress={() => navigation.navigate("ForgotPassword")}
+                onPress={() => navigation.navigate("Login")}
                 activeOpacity={0.7}
               >
                 <Text style={{
@@ -276,13 +258,13 @@ export default function Login() {
                   color: '#666',
                   fontWeight: '400'
                 }}>
-                  Forgot your password?
+                  Remember your password? Sign in
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Register Section */}
+          {/* Instructions */}
           <View style={{
             paddingHorizontal: 24,
             marginBottom: 40
@@ -300,32 +282,45 @@ export default function Login() {
                 color: '#666',
                 textAlign: 'center',
                 marginBottom: 16,
-                lineHeight: 22
+                lineHeight: 22,
+                fontWeight: '500'
               }}>
-                New to our spiritual community?
+                What happens next?
               </Text>
               
-              <TouchableOpacity
-                style={{
-                  backgroundColor: 'transparent',
-                  paddingVertical: 12,
-                  paddingHorizontal: 24,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: '#FF6B00'
-                }}
-                onPress={() => navigation.navigate("Register")}
-                activeOpacity={0.7}
-              >
+              <View style={{ alignItems: 'flex-start', width: '100%' }}>
                 <Text style={{
-                  color: '#FF6B00',
-                  fontSize: 16,
-                  fontWeight: '500',
-                  letterSpacing: 0.3
+                  fontSize: 14,
+                  color: '#666',
+                  lineHeight: 20,
+                  marginBottom: 8
                 }}>
-                  Create Account
+                  • Check your email inbox for reset instructions
                 </Text>
-              </TouchableOpacity>
+                <Text style={{
+                  fontSize: 14,
+                  color: '#666',
+                  lineHeight: 20,
+                  marginBottom: 8
+                }}>
+                  • Click the link in the email to reset your password
+                </Text>
+                <Text style={{
+                  fontSize: 14,
+                  color: '#666',
+                  lineHeight: 20,
+                  marginBottom: 8
+                }}>
+                  • Create a new secure password
+                </Text>
+                <Text style={{
+                  fontSize: 14,
+                  color: '#666',
+                  lineHeight: 20
+                }}>
+                  • Return here to sign in with your new password
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -344,7 +339,7 @@ export default function Login() {
               lineHeight: 20,
               letterSpacing: 0.2
             }}>
-              "The spiritual master opens the door of the{'\n'}darkest ignorance."
+              "The path of spiritual progress is never lost{'\n'}when one sincerely seeks guidance."
             </Text>
             <Text style={{
               fontSize: 12,
