@@ -1,26 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  Platform,
-  ActivityIndicator,
-  Modal,
-  FlatList,
-} from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from '@react-native-picker/picker';
-import { auth, db } from "../firebaseCo";
-import { collection, addDoc, serverTimestamp, getDocs, query, orderBy } from "firebase/firestore";
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { addDoc, collection, getDocs, orderBy, query, serverTimestamp } from "firebase/firestore";
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Modal,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import GuideOverlay from '../components/GuideOverlay';
+import { auth, db } from "../firebaseCo";
 
 interface Book {
   id: string;
@@ -57,7 +57,7 @@ interface MonthlyReport {
   fileName: string;
 }
 
-// Searchable Book Dropdown Component
+// Mobile-Optimized Book Selection Modal Component
 interface SearchableBookDropdownProps {
   books: Book[];
   selectedBook?: Book | null;
@@ -73,7 +73,7 @@ const SearchableBookDropdown: React.FC<SearchableBookDropdownProps> = ({
   placeholder = "Search for a book...",
   allowManualEntry = true
 }) => {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [filteredBooks, setFilteredBooks] = useState<Book[]>(books);
 
@@ -91,87 +91,149 @@ const SearchableBookDropdown: React.FC<SearchableBookDropdownProps> = ({
 
   const handleBookSelect = (book: Book) => {
     onBookSelect(book);
-    setIsDropdownOpen(false);
+    setIsModalOpen(false);
     setSearchText('');
   };
 
   const handleManualEntry = () => {
     onBookSelect(null);
-    setIsDropdownOpen(false);
+    setIsModalOpen(false);
+    setSearchText('');
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
     setSearchText('');
   };
 
   const renderBookItem = ({ item }: { item: Book }) => (
-    <TouchableOpacity style={styles.dropdownItem} onPress={() => handleBookSelect(item)}>
-      <View>
-        <Text style={styles.bookItemTitle}>{item.title}</Text>
-        <Text style={styles.bookItemSubtext}>by {item.author}</Text>
-        {item.category && <Text style={styles.bookItemSubtext}>{item.category}</Text>}
+    <TouchableOpacity 
+      style={styles.mobileBookItem} 
+      onPress={() => handleBookSelect(item)}
+      activeOpacity={0.7}
+    >
+      <View style={styles.bookItemContent}>
+        <View style={styles.bookItemHeader}>
+          <Text style={styles.mobileBookTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          {item.bookId && (
+            <View style={styles.libraryBadge}>
+              <Text style={styles.libraryBadgeText}>📚</Text>
+            </View>
+          )}
+        </View>
+        <Text style={styles.mobileBookAuthor} numberOfLines={1}>
+          by {item.author}
+        </Text>
+        {item.category && (
+          <Text style={styles.mobileBookCategory} numberOfLines={1}>
+            {item.category}
+          </Text>
+        )}
       </View>
+      <Ionicons name="chevron-forward" size={20} color="#999" />
     </TouchableOpacity>
   );
 
   return (
     <View>
-      <TouchableOpacity style={styles.input} onPress={() => setIsDropdownOpen(true)}>
-        <Text style={[styles.inputText, !selectedBook && styles.placeholder]}>
-          {selectedBook ? selectedBook.title : placeholder}
-        </Text>
-        <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={20} color="#666" />
+      <TouchableOpacity 
+        style={styles.mobileInputButton} 
+        onPress={() => setIsModalOpen(true)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.inputButtonContent}>
+          <Ionicons name="book-outline" size={20} color="#FF6B00" />
+          <Text style={[styles.inputButtonText, !selectedBook && styles.placeholder]}>
+            {selectedBook ? selectedBook.title : placeholder}
+          </Text>
+        </View>
+        <Ionicons name="chevron-down" size={20} color="#666" />
       </TouchableOpacity>
 
       <Modal
-        visible={isDropdownOpen}
-        transparent={true}
+        visible={isModalOpen}
         animationType="slide"
-        onRequestClose={() => setIsDropdownOpen(false)}
+        presentationStyle="pageSheet"
+        onRequestClose={handleCloseModal}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select a Book</Text>
-              <TouchableOpacity onPress={() => setIsDropdownOpen(false)}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
+        <SafeAreaView style={styles.mobileModalContainer}>
+          {/* Header */}
+          <View style={styles.mobileModalHeader}>
+            <TouchableOpacity 
+              style={styles.closeButton} 
+              onPress={handleCloseModal}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.mobileModalTitle}>Select Book</Text>
+            <View style={styles.headerSpacer} />
+          </View>
 
-            <View style={styles.searchContainer}>
-              <Ionicons name="search" size={20} color="#666" />
-              <TextInput
-                style={styles.searchInput}
-                value={searchText}
-                onChangeText={setSearchText}
-                placeholder="Search by title or author..."
-                autoFocus={true}
-              />
-            </View>
-
-            <FlatList
-              data={filteredBooks}
-              renderItem={renderBookItem}
-              keyExtractor={(item) => item.id}
-              style={styles.booksList}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>No books found</Text>
-                  {allowManualEntry && (
-                    <TouchableOpacity style={styles.manualEntryButton} onPress={handleManualEntry}>
-                      <Ionicons name="add-circle-outline" size={20} color="#4CAF50" />
-                      <Text style={styles.manualEntryText}>Enter manually</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              }
+          {/* Search Bar */}
+          <View style={styles.mobileSearchContainer}>
+            <Ionicons name="search" size={20} color="#666" />
+            <TextInput
+              style={styles.mobileSearchInput}
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholder="Search by title or author..."
+              placeholderTextColor="#999"
+              autoFocus={true}
+              returnKeyType="search"
             />
-
-            {allowManualEntry && filteredBooks.length > 0 && (
-              <TouchableOpacity style={styles.manualEntryButton} onPress={handleManualEntry}>
-                <Ionicons name="add-circle-outline" size={20} color="#4CAF50" />
-                <Text style={styles.manualEntryText}>Enter book title manually</Text>
+            {searchText.length > 0 && (
+              <TouchableOpacity 
+                onPress={() => setSearchText('')}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close-circle" size={20} color="#999" />
               </TouchableOpacity>
             )}
           </View>
-        </View>
+
+          {/* Books List */}
+          <FlatList
+            data={filteredBooks}
+            renderItem={renderBookItem}
+            keyExtractor={(item) => item.id}
+            style={styles.mobileBooksList}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.mobileEmptyContainer}>
+                <Ionicons name="book-outline" size={48} color="#CCC" />
+                <Text style={styles.mobileEmptyTitle}>No books found</Text>
+                <Text style={styles.mobileEmptySubtitle}>
+                  {searchText ? 'Try a different search term' : 'No books available'}
+                </Text>
+                {allowManualEntry && (
+                  <TouchableOpacity 
+                    style={styles.mobileManualButton} 
+                    onPress={handleManualEntry}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color="#4CAF50" />
+                    <Text style={styles.mobileManualText}>Enter manually</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            }
+            ListFooterComponent={
+              allowManualEntry && filteredBooks.length > 0 ? (
+                <TouchableOpacity 
+                  style={styles.mobileManualButton} 
+                  onPress={handleManualEntry}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color="#4CAF50" />
+                  <Text style={styles.mobileManualText}>Enter book title manually</Text>
+                </TouchableOpacity>
+              ) : null
+            }
+          />
+        </SafeAreaView>
       </Modal>
     </View>
   );
@@ -789,11 +851,10 @@ export default function AdminBookLogging() {
                 <View style={styles.flex1}>
                   <Text style={styles.bookTitle}>
                     {book.title}
-                    {book.bookId && <Text style={styles.bookIdBadge}> 📚</Text>}
+                    {book.bookId ? ' 📚' : ''}
                   </Text>
                   <Text style={styles.bookDetails}>
-                    {book.bookId && <Text>ID: {book.bookId} | </Text>}
-                    Qty: {book.quantity} | Points: {book.points} each | {book.publisher}
+                    {book.bookId ? `ID: ${book.bookId} | ` : ''}Qty: {book.quantity} | Points: {book.points} each | {book.publisher}
                   </Text>
                   <Text style={styles.bookType}>
                     {book.isBBTBook ? '🟢 BBT Book' : '🔵 Other Book'} | Total Points: {book.quantity * book.points}
@@ -905,7 +966,7 @@ export default function AdminBookLogging() {
                         <View key={`${reportKey}-${bIndex}`} style={styles.expandedBookItem}>
                           <Text style={styles.bookTitle}>
                             {book.title}
-                            {book.bookId && <Text style={styles.bookIdBadge}> 📚</Text>}
+                            {book.bookId ? ' 📚' : ''}
                           </Text>
                           <Text style={styles.bookDetails}>
                             Qty: {book.quantity} | Points: {book.points} each
@@ -1182,7 +1243,166 @@ const styles = StyleSheet.create({
   },
   bookIdBadge: { fontSize: 12 },
   
-  // Modal styles
+  // Mobile-optimized input button
+  mobileInputButton: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 56,
+  },
+  inputButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  inputButtonText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 12,
+    flex: 1,
+  },
+
+  // Mobile modal styles
+  mobileModalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  mobileModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    backgroundColor: '#FFFFFF',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  mobileModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  headerSpacer: {
+    width: 32,
+  },
+
+  // Mobile search styles
+  mobileSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    backgroundColor: '#F9F9F9',
+  },
+  mobileSearchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 12,
+    marginRight: 8,
+  },
+  mobileBooksList: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+
+  // Mobile book item styles
+  mobileBookItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  bookItemContent: {
+    flex: 1,
+  },
+  bookItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  mobileBookTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+    lineHeight: 22,
+  },
+  libraryBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: '#FFF4E6',
+    borderRadius: 4,
+  },
+  libraryBadgeText: {
+    fontSize: 12,
+  },
+  mobileBookAuthor: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  mobileBookCategory: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
+  },
+
+  // Mobile empty state and manual entry
+  mobileEmptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  mobileEmptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  mobileEmptySubtitle: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  mobileManualButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    backgroundColor: '#F0F8F0',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+    marginVertical: 8,
+  },
+  mobileManualText: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: '#4CAF50',
+    fontWeight: '500',
+  },
+
+  // Legacy styles (keeping for backward compatibility)
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1208,8 +1428,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  
-  // Search styles
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1231,8 +1449,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
   },
-  
-  // Dropdown styles
   dropdownItem: {
     paddingVertical: 15,
     paddingHorizontal: 10,
@@ -1250,8 +1466,6 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 2,
   },
-  
-  // Empty state and manual entry
   emptyContainer: {
     alignItems: 'center',
     padding: 40,
