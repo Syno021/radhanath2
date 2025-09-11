@@ -1,22 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  SafeAreaView, 
-  Image, 
-  FlatList, 
-  TouchableOpacity,
-  TextInput,
-  Linking,
-  ActivityIndicator,
-  StatusBar,
-  ScrollView,
-  useWindowDimensions
-} from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from '@react-native-picker/picker';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Linking,
+  Modal,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View
+} from 'react-native';
 import { db } from '../firebaseCo';
 
 interface Book {
@@ -49,6 +48,14 @@ export default function Books() {
     format: '',
     searchText: ''
   });
+  const [debouncedSearchText, setDebouncedSearchText] = useState('');
+  const [isFiltersModalVisible, setIsFiltersModalVisible] = useState(false);
+  const [tempFilters, setTempFilters] = useState<FilterState>({
+    category: '',
+    language: '',
+    format: '',
+    searchText: ''
+  });
 
   const [categories, setCategories] = useState<string[]>([]);
   const [languages, setLanguages] = useState<string[]>([]);
@@ -61,6 +68,14 @@ export default function Books() {
   useEffect(() => {
     fetchBooks();
   }, []);
+
+  // Debounce search text for smoother typing and fewer re-renders
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setDebouncedSearchText(filters.searchText);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [filters.searchText]);
 
   const fetchBooks = async () => {
     try {
@@ -114,18 +129,44 @@ export default function Books() {
     });
   };
 
-  const filteredBooks = books.filter(book => {
-    const matchesCategory = !filters.category || book.category === filters.category;
-    const matchesLanguage = !filters.language || book.language === filters.language;
-    const matchesFormat = !filters.format || book.format === filters.format;
-    const matchesSearch = !filters.searchText || 
-      book.title.toLowerCase().includes(filters.searchText.toLowerCase()) ||
-      book.author.toLowerCase().includes(filters.searchText.toLowerCase());
+  const openFiltersModal = () => {
+    setTempFilters(filters);
+    setIsFiltersModalVisible(true);
+  };
 
-    return matchesCategory && matchesLanguage && matchesFormat && matchesSearch;
-  });
+  const closeFiltersModal = () => {
+    setIsFiltersModalVisible(false);
+  };
 
-  const getFormatColor = (format?: string) => {
+  const applyFiltersFromModal = () => {
+    setFilters((prev) => ({
+      ...prev,
+      category: tempFilters.category,
+      language: tempFilters.language,
+      format: tempFilters.format,
+    }));
+    closeFiltersModal();
+  };
+
+  const clearFiltersInModal = () => {
+    setTempFilters({ category: '', language: '', format: '', searchText: '' });
+  };
+
+  const filteredBooks = useMemo(() => {
+    const normalizedSearch = debouncedSearchText.trim().toLowerCase();
+    if (!books.length) return [];
+    return books.filter((book) => {
+      const matchesCategory = !filters.category || book.category === filters.category;
+      const matchesLanguage = !filters.language || book.language === filters.language;
+      const matchesFormat = !filters.format || book.format === filters.format;
+      const matchesSearch = !normalizedSearch ||
+        book.title.toLowerCase().includes(normalizedSearch) ||
+        book.author.toLowerCase().includes(normalizedSearch);
+      return matchesCategory && matchesLanguage && matchesFormat && matchesSearch;
+    });
+  }, [books, filters.category, filters.language, filters.format, debouncedSearchText]);
+
+  const getFormatColor = useCallback((format?: string) => {
     switch (format) {
       case 'PDF': return '#FF6B00';
       case 'EPUB': return '#10B981';
@@ -133,9 +174,9 @@ export default function Books() {
       case 'Audio': return '#8B5CF6';
       default: return '#FF6B00';
     }
-  };
+  }, []);
 
-  const renderBookCard = ({ item: book }: { item: Book }) => (
+  const renderBookCard = useCallback(({ item: book }: { item: Book }) => (
     <TouchableOpacity 
       style={[styles.bookCard, { width: cardWidth }]}
       activeOpacity={0.85}
@@ -218,7 +259,7 @@ export default function Books() {
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
-  );
+  ), [cardWidth, handleReadBook, getFormatColor]);
 
   if (loading) {
     return (
@@ -240,8 +281,13 @@ export default function Books() {
         numColumns={isTablet ? 3 : 2}
         contentContainerStyle={styles.booksList}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={8}
+        windowSize={5}
+        maxToRenderPerBatch={10}
+        removeClippedSubviews
+        keyboardShouldPersistTaps="handled"
         ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
-        columnWrapperStyle={isTablet || !isTablet ? styles.row : null}
+        columnWrapperStyle={isTablet ? styles.row : styles.row}
         ListHeaderComponent={
           <View>
             {/* Header */}
@@ -250,7 +296,7 @@ export default function Books() {
                 <Text style={styles.headerTitle}>Srila Prabhupada's Books</Text>
                 <Text style={styles.headerSubtitle}>{books.length} sacred texts available</Text>
               </View>
-              <TouchableOpacity style={styles.headerAction}>
+              <TouchableOpacity style={styles.headerAction} onPress={openFiltersModal}>
                 <Ionicons name="heart-outline" size={20} color="#FF6B00" />
               </TouchableOpacity>
             </View>
@@ -264,9 +310,8 @@ export default function Books() {
               <View style={styles.quoteDivider} />
             </View>
 
-            {/* Filters */}
+            {/* Search */}
             <View style={styles.filtersSection}>
-              {/* Search Bar */}
               <View style={styles.searchContainer}>
                 <Ionicons name="search" size={16} color="#999" />
                 <TextInput
@@ -281,73 +326,6 @@ export default function Books() {
                     <Ionicons name="close" size={16} color="#999" />
                   </TouchableOpacity>
                 )}
-              </View>
-
-              {/* Filter Pills - Stacked Layout */}
-              <View style={styles.filtersContainer}>
-                {/* First Row */}
-                <View style={styles.filtersRow}>
-                  {/* Category Filter */}
-                  <View style={[styles.filterPill, styles.filterPillFlex]}>
-                    <Ionicons name="library-outline" size={12} color="#FF6B00" />
-                    <Picker
-                      selectedValue={filters.category}
-                      onValueChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
-                      style={styles.pillPicker}
-                    >
-                      <Picker.Item label="Category" value="" />
-                      {categories.map(category => (
-                        <Picker.Item key={category} label={category} value={category} />
-                      ))}
-                    </Picker>
-                  </View>
-
-                  {/* Language Filter */}
-                  <View style={[styles.filterPill, styles.filterPillFlex]}>
-                    <Ionicons name="language-outline" size={12} color="#FF6B00" />
-                    <Picker
-                      selectedValue={filters.language}
-                      onValueChange={(value) => setFilters(prev => ({ ...prev, language: value }))}
-                      style={styles.pillPicker}
-                    >
-                      <Picker.Item label="Language" value="" />
-                      {languages.map(language => (
-                        <Picker.Item key={language} label={language} value={language} />
-                      ))}
-                    </Picker>
-                  </View>
-                </View>
-
-                {/* Second Row */}
-                <View style={styles.filtersRow}>
-                  {/* Format Filter */}
-                  <View style={[styles.filterPill, styles.filterPillFlex]}>
-                    <Ionicons name="document-outline" size={12} color="#FF6B00" />
-                    <Picker
-                      selectedValue={filters.format}
-                      onValueChange={(value) => setFilters(prev => ({ ...prev, format: value }))}
-                      style={styles.pillPicker}
-                    >
-                      <Picker.Item label="Format" value="" />
-                      {formats.map(format => (
-                        <Picker.Item key={format} label={format} value={format} />
-                      ))}
-                    </Picker>
-                  </View>
-
-                  {/* Clear All Filter */}
-                  {(filters.category || filters.language || filters.format) ? (
-                    <TouchableOpacity style={[styles.clearAllPill, styles.filterPillFlex]} onPress={clearAllFilters}>
-                      <Ionicons name="close" size={12} color="#FFFFFF" />
-                      <Text style={styles.clearAllText}>Clear All</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={[styles.filterPill, styles.filterPillFlex, styles.placeholderPill]}>
-                      <Ionicons name="options-outline" size={12} color="#CCC" />
-                      <Text style={styles.placeholderText}>More Filters</Text>
-                    </View>
-                  )}
-                </View>
               </View>
             </View>
 
@@ -379,6 +357,87 @@ export default function Books() {
           </View>
         }
       />
+
+      {/* Filters Modal */}
+      <Modal
+        visible={isFiltersModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={closeFiltersModal}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filters</Text>
+              <TouchableOpacity style={styles.modalClose} onPress={closeFiltersModal}>
+                <Ionicons name="close" size={18} color="#1A1A1A" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Category</Text>
+              <View style={styles.modalPickerRow}>
+                <Ionicons name="library-outline" size={14} color="#FF6B00" />
+                <Picker
+                  selectedValue={tempFilters.category}
+                  onValueChange={(value) => setTempFilters(prev => ({ ...prev, category: value }))}
+                  style={styles.modalPicker}
+                >
+                  <Picker.Item label="All" value="" />
+                  {categories.map((category) => (
+                    <Picker.Item key={category} label={category} value={category} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Language</Text>
+              <View style={styles.modalPickerRow}>
+                <Ionicons name="language-outline" size={14} color="#FF6B00" />
+                <Picker
+                  selectedValue={tempFilters.language}
+                  onValueChange={(value) => setTempFilters(prev => ({ ...prev, language: value }))}
+                  style={styles.modalPicker}
+                >
+                  <Picker.Item label="All" value="" />
+                  {languages.map((language) => (
+                    <Picker.Item key={language} label={language} value={language} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Format</Text>
+              <View style={styles.modalPickerRow}>
+                <Ionicons name="document-outline" size={14} color="#FF6B00" />
+                <Picker
+                  selectedValue={tempFilters.format}
+                  onValueChange={(value) => setTempFilters(prev => ({ ...prev, format: value }))}
+                  style={styles.modalPicker}
+                >
+                  <Picker.Item label="All" value="" />
+                  {formats.map((format) => (
+                    <Picker.Item key={format} label={format} value={format} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalClearButton} onPress={clearFiltersInModal}>
+                <Ionicons name="refresh" size={14} color="#FF6B00" />
+                <Text style={styles.modalClearText}>Clear</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalApplyButton} onPress={applyFiltersFromModal}>
+                <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                <Text style={styles.modalApplyText}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -495,9 +554,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
-  filtersContainer: {
-    gap: 8,
-  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -517,53 +573,98 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontWeight: '300',
   },
-  filtersRow: {
-    paddingHorizontal: 24,
-    gap: 8,
+  // Modal Styles
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'flex-end',
   },
-  filterPill: {
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 20,
+    paddingTop: 12,
+    paddingHorizontal: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+  },
+  modalTitle: {
+    fontSize: 16,
+    color: '#1A1A1A',
+    fontWeight: '600',
+  },
+  modalClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F7F7F7',
+  },
+  modalSection: {
+    marginTop: 8,
+  },
+  modalLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 6,
+  },
+  modalPickerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FDFCFA',
-    borderRadius: 20,
-    paddingLeft: 12,
-    height: 32,
-    minWidth: 90,
     borderWidth: 1,
     borderColor: '#F0F0F0',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    minHeight: 42,
   },
-  filterPillFlex: {
+  modalPicker: {
     flex: 1,
-  },
-  pillPicker: {
     color: '#1A1A1A',
-    fontSize: 12,
-    fontWeight: '400',
-    marginLeft: 4,
+    marginLeft: 6,
   },
-  clearAllPill: {
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  modalClearButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#FFF4E6',
+    borderWidth: 1,
+    borderColor: '#FFE4CC',
+  },
+  modalClearText: {
+    color: '#FF6B00',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modalApplyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+    height: 40,
+    borderRadius: 10,
     backgroundColor: '#FF6B00',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    height: 32,
-    gap: 4,
   },
-  clearAllText: {
+  modalApplyText: {
     color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  placeholderPill: {
-    backgroundColor: '#FAFAFA',
-    borderColor: '#EEEEEE',
-  },
-  placeholderText: {
-    color: '#999999',
-    fontSize: 12,
-    fontWeight: '400',
-    marginLeft: 4,
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
 
   // Results Header

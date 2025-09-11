@@ -1,27 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-  Platform,
-  ActivityIndicator,
-  FlatList,
-  StatusBar
-} from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from '@react-native-picker/picker';
-import { auth, db } from "../firebaseCo";
-import { collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { generateBookId } from '../utils/idGenerator';
+import { addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import GuideOverlay from '../components/GuideOverlay';
+import { auth, db } from "../firebaseCo";
+import { generateBookId } from '../utils/idGenerator';
 
 interface Book {
   id: string;
@@ -47,12 +46,35 @@ const CATEGORIES = [
 ];
 
 const LANGUAGES = [
+  'All',
+  'Albanian',
+  'Azerbaijani',
+  'Bulgarian',
+  'Croatian',
+  'Czech',
+  'Danish',
   'English',
-  'Hindi',
-  'Bengali',
-  'Sanskrit',
-  'Other'
+  'Esperanto',
+  'Estonian',
+  'Finnish',
+  'French',
+  'Georgian',
+  'German',
+  'Hungarian',
+  'Latvian',
+  'Lithuanian',
+  'Norwegian',
+  'Polish',
+  'Romanian',
+  'Russian',
+  'Serbian',
+  'Slovak',
+  'Slovenian',
+  'Spanish',
+  'Swedish',
+  'Ukrainian'
 ];
+
 
 const FORMATS = ['PDF', 'EPUB', 'HTML', 'Audio'];
 
@@ -503,7 +525,7 @@ export default function AdminAddBooks() {
             <Text style={styles.label}>Description</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              value={book.description}
+              value={book.description || ''}
               onChangeText={(text) => setBook(prev => ({ ...prev, description: text }))}
               placeholder="Enter book description"
               placeholderTextColor="#999"
@@ -561,7 +583,7 @@ export default function AdminAddBooks() {
             <Text style={styles.label}>Publish Year</Text>
             <TextInput
               style={styles.input}
-              value={book.publishYear?.toString()}
+              value={book.publishYear?.toString() || ''}
               onChangeText={(text) => setBook(prev => ({ ...prev, publishYear: parseInt(text) || undefined }))}
               placeholder="Enter publish year"
               placeholderTextColor="#999"
@@ -573,7 +595,7 @@ export default function AdminAddBooks() {
             <Text style={styles.label}>BBT Media Link</Text>
             <TextInput
               style={styles.input}
-              value={book.bbtMediaLink}
+              value={book.bbtMediaLink || ''}
               onChangeText={(text) => setBook(prev => ({ ...prev, bbtMediaLink: text }))}
               placeholder="Enter BBT Media link"
               placeholderTextColor="#999"
@@ -663,7 +685,16 @@ export default function AdminAddBooks() {
         {/* View Book Modal */}
         {viewingBook && (
           <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
+            <TouchableOpacity 
+              style={styles.modalBackdrop}
+              activeOpacity={1}
+              onPress={() => setViewingBook(null)}
+            >
+              <TouchableOpacity 
+                style={styles.modalContent}
+                activeOpacity={1}
+                onPress={(e) => e.stopPropagation()}
+              >
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Book Details</Text>
                 <TouchableOpacity
@@ -737,7 +768,8 @@ export default function AdminAddBooks() {
                   <Text style={[styles.buttonText, { color: '#FF6B00', marginLeft: 4 }]}>Edit</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+              </TouchableOpacity>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -1023,10 +1055,14 @@ guideStep: {
     left: 0,
     right: 0,
     bottom: 0,
+    zIndex: 1000,
+    elevation: 1000,
+  },
+  modalBackdrop: {
+    flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000,
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
@@ -1173,5 +1209,4 @@ guideStep: {
     color: '#999',
     fontWeight: '400',
   }
-  // End of object literal
 });

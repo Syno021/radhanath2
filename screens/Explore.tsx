@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Platform, StatusBar, useWindowDimensions, ActivityIndicator } from 'react-native';
-import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ExploreStackParamList } from '../app/navigation/ExploreStack';
-import { collection, onSnapshot, getCountFromServer } from 'firebase/firestore';
-import { db, auth } from '../firebaseCo';
-import ProfileService from '../services/userService'; // Import the user service
-import { User } from '../models/user.model'; // Import User type
 import { User as FirebaseUser } from 'firebase/auth'; // Import Firebase User type
+import { collection, getCountFromServer, onSnapshot } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StatusBar, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { ExploreStackParamList } from '../app/navigation/ExploreStack';
+import { db } from '../firebaseCo';
+import { User } from '../models/user.model'; // Import User type
+import ProfileService from '../services/userService'; // Import the user service
 
 type ExploreNavigationProp = NativeStackNavigationProp<ExploreStackParamList, 'Explore'>;
 
@@ -169,7 +168,6 @@ export default function Explore() {
         });
 
         setStats(newStats);
-        console.error('Error fetching statistics:', Error);
       } catch (error) {
         console.error('Error fetching statistics:', error);
         setStats(prev => ({ ...prev, loading: false }));
