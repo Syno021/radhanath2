@@ -4,7 +4,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { addDoc, collection, getDocs, orderBy, query, serverTimestamp } from "firebase/firestore";
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -21,6 +21,8 @@ import {
 } from 'react-native';
 import GuideOverlay from '../components/GuideOverlay';
 import { auth, db } from "../firebaseCo";
+import { useColorScheme } from '../hooks/useColorScheme';
+import { useThemeColor } from '../hooks/useThemeColor';
 import { ReportGenerationService, ReportStatistics } from '../services/ReportGenerationService';
 
 interface Book {
@@ -76,38 +78,35 @@ const SearchableBookDropdown: React.FC<SearchableBookDropdownProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [filteredBooks, setFilteredBooks] = useState<Book[]>(books);
 
-  useEffect(() => {
+  const filteredBooks = useMemo(() => {
     if (searchText.trim() === '') {
-      setFilteredBooks(books);
-    } else {
-      const filtered = books.filter(book =>
-        book.title.toLowerCase().includes(searchText.toLowerCase()) ||
-        book.author.toLowerCase().includes(searchText.toLowerCase())
-      );
-      setFilteredBooks(filtered);
+      return books;
     }
+    return books.filter(book =>
+      book.title.toLowerCase().includes(searchText.toLowerCase()) ||
+      book.author.toLowerCase().includes(searchText.toLowerCase())
+    );
   }, [searchText, books]);
 
-  const handleBookSelect = (book: Book) => {
+  const handleBookSelect = useCallback((book: Book) => {
     onBookSelect(book);
     setIsModalOpen(false);
     setSearchText('');
-  };
+  }, [onBookSelect]);
 
-  const handleManualEntry = () => {
+  const handleManualEntry = useCallback(() => {
     onBookSelect(null);
     setIsModalOpen(false);
     setSearchText('');
-  };
+  }, [onBookSelect]);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setIsModalOpen(false);
     setSearchText('');
-  };
+  }, []);
 
-  const renderBookItem = ({ item }: { item: Book }) => (
+  const renderBookItem = useCallback(({ item }: { item: Book }) => (
     <TouchableOpacity 
       style={styles.mobileBookItem} 
       onPress={() => handleBookSelect(item)}
@@ -135,7 +134,7 @@ const SearchableBookDropdown: React.FC<SearchableBookDropdownProps> = ({
       </View>
       <Ionicons name="chevron-forward" size={20} color="#999" />
     </TouchableOpacity>
-  );
+  ), [handleBookSelect]);
 
   return (
     <View>
@@ -276,6 +275,24 @@ const TEMPLATE_DATA = [
 ];
 
 export default function AdminBookLogging() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  
+  // Theme colors
+  const backgroundColor = useThemeColor({}, 'background');
+  const textColor = useThemeColor({}, 'text');
+  const iconColor = useThemeColor({}, 'icon');
+  const tintColor = useThemeColor({}, 'tint');
+  
+  // Custom theme colors for the app
+  const primaryColor = '#FF6B00';
+  const primaryLight = isDark ? '#FF8C42' : '#FF6B00';
+  const cardBackground = isDark ? '#1C1C1E' : '#FFFFFF';
+  const borderColor = isDark ? '#3A3A3C' : '#E0E0E0';
+  const secondaryBackground = isDark ? '#2C2C2E' : '#FDFCFA';
+  const mutedText = isDark ? '#8E8E93' : '#666666';
+  const placeholderText = isDark ? '#6D6D70' : '#999999';
+  
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [loadingBooks, setLoadingBooks] = useState(false);
@@ -288,6 +305,8 @@ export default function AdminBookLogging() {
   const [expandedReports, setExpandedReports] = useState<Record<string, boolean>>({});
   const [showGuide, setShowGuide] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showFullReportModal, setShowFullReportModal] = useState(false);
+  const [selectedFullReport, setSelectedFullReport] = useState<MonthlyReport | null>(null);
   const [statistics, setStatistics] = useState<ReportStatistics | null>(null);
   
   const [currentReport, setCurrentReport] = useState<Partial<MonthlyReport>>({
@@ -328,7 +347,7 @@ export default function AdminBookLogging() {
     }
   }, [reports]);
 
-  const fetchBooks = async () => {
+  const fetchBooks = useCallback(async () => {
     setLoadingBooks(true);
     try {
       const booksQuery = query(collection(db, 'books'), orderBy('title'));
@@ -345,37 +364,31 @@ export default function AdminBookLogging() {
     } finally {
       setLoadingBooks(false);
     }
-  };
+  }, []);
 
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     setLoadingReports(true);
     try {
-      const fetchAllReports = async () => {
-        const reportsRef = collection(db, 'bookReports');
-        const querySnapshot = await getDocs(reportsRef); // Changed from reportsQuery to reportsRef
-        
-        const allReports: MonthlyReport[] = [];
-        querySnapshot.forEach((doc) => {
-          allReports.push({ 
-            id: doc.id, 
-            ...doc.data() 
-          } as MonthlyReport);
-        });
+      const reportsRef = collection(db, 'bookReports');
+      const querySnapshot = await getDocs(reportsRef);
+      
+      const allReports: MonthlyReport[] = [];
+      querySnapshot.forEach((doc) => {
+        allReports.push({ 
+          id: doc.id, 
+          ...doc.data() 
+        } as MonthlyReport);
+      });
 
-        // Sort reports by year and month
-        allReports.sort((a, b) => {
-          if (a.year !== b.year) {
-            return b.year - a.year; // Most recent year first
-          }
-          // If same year, sort by month (December to January)
-          return MONTHS.indexOf(b.month) - MONTHS.indexOf(a.month);
-        });
+      // Sort reports by year and month
+      allReports.sort((a, b) => {
+        if (a.year !== b.year) {
+          return b.year - a.year; // Most recent year first
+        }
+        // If same year, sort by month (December to January)
+        return MONTHS.indexOf(b.month) - MONTHS.indexOf(a.month);
+      });
 
-        return allReports;
-      };
-
-      const allReports = await fetchAllReports();
-      console.log('Total reports fetched:', allReports.length);
       setReports(allReports);
       
     } catch (error: any) {
@@ -384,29 +397,28 @@ export default function AdminBookLogging() {
     } finally {
       setLoadingReports(false);
     }
-  };
+  }, []);
 
-  const handleBookSelect = (book: Book | null) => {
+  const handleBookSelect = useCallback((book: Book | null) => {
     if (book) {
       setSelectedBook(book);
       setIsManualEntry(false);
+      const isBBT = book.title.toLowerCase().includes('bhagavad') || 
+                   book.title.toLowerCase().includes('bhagavatam') || 
+                   book.title.toLowerCase().includes('caitanya');
       setBookEntry(prev => ({
         ...prev,
         bookId: book.id,
         title: book.title,
-        publisher: book.title.toLowerCase().includes('bhagavad') || 
-                   book.title.toLowerCase().includes('bhagavatam') || 
-                   book.title.toLowerCase().includes('caitanya') ? 'BBT' : prev.publisher,
-        isBBTBook: book.title.toLowerCase().includes('bhagavad') || 
-                   book.title.toLowerCase().includes('bhagavatam') || 
-                   book.title.toLowerCase().includes('caitanya')
+        publisher: isBBT ? 'BBT' : prev.publisher,
+        isBBTBook: isBBT
       }));
     } else {
       setSelectedBook(null);
       setIsManualEntry(true);
       setBookEntry(prev => ({ ...prev, bookId: undefined, title: '' }));
     }
-  };
+  }, []);
 
   const validateBookEntry = () => {
     if (!bookEntry.title.trim()) {
@@ -450,11 +462,11 @@ export default function AdminBookLogging() {
     }));
   };
 
-  const calculateReportTotals = (books: BookEntry[]) => {
+  const calculateReportTotals = useCallback((books: BookEntry[]) => {
     const totalBooks = books.reduce((sum, book) => sum + book.quantity, 0);
     const totalPoints = books.reduce((sum, book) => sum + (book.quantity * book.points), 0);
     return { totalBooks, totalPoints };
-  };
+  }, []);
 
   const handleSubmitReport = async () => {
     if (!currentReport.books || currentReport.books.length === 0) {
@@ -648,13 +660,16 @@ export default function AdminBookLogging() {
     }
   };
 
-  const currentReportTotals = calculateReportTotals(currentReport.books || []);
+  const currentReportTotals = useMemo(() => 
+    calculateReportTotals(currentReport.books || []), 
+    [currentReport.books, calculateReportTotals]
+  );
 
-  const toggleReportExpand = (key: string) => {
+  const toggleReportExpand = useCallback((key: string) => {
     setExpandedReports(prev => ({ ...prev, [key]: !prev[key] }));
-  };
+  }, []);
 
-  const formatUploadDate = (timestamp: any) => {
+  const formatUploadDate = useCallback((timestamp: any) => {
     if (!timestamp) return 'Unknown date';
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -662,11 +677,9 @@ export default function AdminBookLogging() {
     } catch {
       return 'Unknown date';
     }
-  };
+  }, []);
 
-  const handleGeneratePDFReport = async (reportType: 'summary' | 'detailed' = 'summary') => {
-    console.log('Starting PDF report generation...', { reportType, reportsCount: reports.length });
-    
+  const handleGeneratePDFReport = useCallback(async (reportType: 'summary' | 'detailed' = 'summary') => {
     if (reports.length === 0) {
       Alert.alert('No Data', 'No reports available to generate statistics');
       return;
@@ -674,12 +687,10 @@ export default function AdminBookLogging() {
 
     setGeneratingReport(true);
     try {
-      console.log('Calling ReportGenerationService.generateAndSharePDF...');
       await ReportGenerationService.generateAndSharePDF(reports, reportType);
-      console.log('PDF report generation completed successfully');
       Alert.alert(
         'Success', 
-        'PDF report generated successfully! 📊\n\nIf the download didn\'t start automatically, check your browser\'s download folder or try right-clicking and "Save as..." on any download links.',
+        'PDF report generated successfully! 📊',
         [{ text: 'OK', style: 'default' }]
       );
     } catch (error: any) {
@@ -688,11 +699,9 @@ export default function AdminBookLogging() {
     } finally {
       setGeneratingReport(false);
     }
-  };
+  }, [reports]);
 
-  const handleGenerateExcelReport = async () => {
-    console.log('Starting Excel report generation...', { reportsCount: reports.length });
-    
+  const handleGenerateExcelReport = useCallback(async () => {
     if (reports.length === 0) {
       Alert.alert('No Data', 'No reports available to generate statistics');
       return;
@@ -700,12 +709,10 @@ export default function AdminBookLogging() {
 
     setGeneratingReport(true);
     try {
-      console.log('Calling ReportGenerationService.generateAndShareExcel...');
       await ReportGenerationService.generateAndShareExcel(reports);
-      console.log('Excel report generation completed successfully');
       Alert.alert(
         'Success', 
-        'Excel report generated successfully! 📈\n\nIf the download didn\'t start automatically, check your browser\'s download folder or try right-clicking and "Save as..." on any download links.',
+        'Excel report generated successfully! 📈',
         [{ text: 'OK', style: 'default' }]
       );
     } catch (error: any) {
@@ -714,81 +721,22 @@ export default function AdminBookLogging() {
     } finally {
       setGeneratingReport(false);
     }
-  };
+  }, [reports]);
 
-  const showReportOptions = () => {
+  const showReportOptions = useCallback(() => {
     if (reports.length === 0) {
       Alert.alert('No Data', 'No reports available to generate statistics');
       return;
     }
     setShowReportModal(true);
-  };
+  }, [reports.length]);
 
-  // Test function to debug report generation
-  const testReportGeneration = async () => {
-    console.log('=== TESTING REPORT GENERATION ===');
-    console.log('Reports available:', reports.length);
-    console.log('Reports data:', reports);
-    
-    if (reports.length === 0) {
-      console.log('No reports available for testing');
-      Alert.alert('Test Failed', 'No reports available for testing. Please add some book reports first.');
-      return;
-    }
+  const viewFullReport = useCallback((report: MonthlyReport) => {
+    setSelectedFullReport(report);
+    setShowFullReportModal(true);
+  }, []);
 
-    try {
-      console.log('Testing statistics generation...');
-      const stats = ReportGenerationService.generateStatistics(reports);
-      console.log('Statistics test successful:', stats);
-      
-      Alert.alert('Test Success', `Statistics generated successfully!\n\nTotal Reports: ${stats.totalReports}\nTotal Books: ${stats.totalBooksDistributed}\nTotal Points: ${stats.totalPointsEarned}`);
-    } catch (error: any) {
-      console.error('Statistics test failed:', error);
-      Alert.alert('Test Failed', 'Statistics generation failed: ' + error.message);
-    }
-  };
 
-  // Manual download function for when automatic download fails
-  const handleManualDownload = async (type: 'pdf' | 'excel', reportType: 'summary' | 'detailed' = 'summary') => {
-    if (reports.length === 0) {
-      Alert.alert('No Data', 'No reports available to generate statistics');
-      return;
-    }
-
-    setGeneratingReport(true);
-    try {
-      let downloadUrl: string;
-      let fileName: string;
-      
-      if (type === 'excel') {
-        downloadUrl = await ReportGenerationService.generateExcelDownloadUrl(reports);
-        fileName = `BBT_Book_Distribution_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
-      } else {
-        downloadUrl = await ReportGenerationService.generatePDFDownloadUrl(reports, reportType);
-        fileName = `BBT_Book_Distribution_Report_${new Date().toISOString().split('T')[0]}.pdf`;
-      }
-
-      // Create a temporary link for manual download
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = fileName;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      Alert.alert(
-        'Download Link Created', 
-        `${type.toUpperCase()} report generated!\n\nIf the download didn't start, right-click the link and select "Save as..." or check your browser's download folder.`,
-        [{ text: 'OK', style: 'default' }]
-      );
-    } catch (error: any) {
-      console.error(`${type} manual download failed:`, error);
-      Alert.alert('Error', `Failed to generate ${type} report: ` + error.message);
-    } finally {
-      setGeneratingReport(false);
-    }
-  };
 
   const guideSteps = [
     {
@@ -813,19 +761,250 @@ export default function AdminBookLogging() {
     }
   ];
 
+  // Generate theme-aware styles
+  const themeStyles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: secondaryBackground,
+    },
+    header: {
+      paddingHorizontal: 24,
+      paddingTop: 60,
+      paddingBottom: 20,
+      backgroundColor: secondaryBackground,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    headerText: {
+      fontSize: 22,
+      fontWeight: '600',
+      color: primaryColor,
+      letterSpacing: 0.5,
+    },
+    headerSubText: {
+      fontSize: 12,
+      color: mutedText,
+      fontWeight: '300',
+      marginTop: 2,
+    },
+    section: {
+      backgroundColor: cardBackground,
+      borderRadius: 12,
+      padding: 20,
+      marginBottom: 20,
+      elevation: 2,
+      shadowColor: isDark ? '#000' : primaryColor,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.3 : 0.08,
+      shadowRadius: 8,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: '400',
+      color: textColor,
+      marginBottom: 20,
+      letterSpacing: 0.3,
+    },
+    label: {
+      fontSize: 16,
+      marginBottom: 8,
+      color: textColor,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: borderColor,
+      borderRadius: 8,
+      padding: 12,
+      fontSize: 16,
+      backgroundColor: cardBackground,
+      color: textColor,
+    },
+    text: {
+      fontSize: 14,
+      color: textColor,
+      marginLeft: 10,
+    },
+    description: {
+      fontSize: 14,
+      color: mutedText,
+      marginBottom: 20,
+      lineHeight: 20,
+    },
+    reportCard: {
+      backgroundColor: cardBackground,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: isDark ? '#3A3A3C' : '#FFE4CC',
+      shadowColor: isDark ? '#000' : primaryColor,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.3 : 0.05,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    reportTitle: {
+      fontSize: 16,
+      color: primaryColor,
+      fontWeight: '500',
+    },
+    reportStats: {
+      fontSize: 14,
+      color: mutedText,
+      marginBottom: 4,
+    },
+    reportFile: {
+      fontSize: 12,
+      color: placeholderText,
+      marginBottom: 4,
+    },
+    reportDetails: {
+      fontSize: 12,
+      color: placeholderText,
+    },
+    bookItem: {
+      backgroundColor: isDark ? '#2C2C2E' : '#FFF9F5',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: isDark ? '#3A3A3C' : '#FFE4CC',
+      flexDirection: 'row',
+    },
+    bookTitle: {
+      fontSize: 16,
+      color: textColor,
+      fontWeight: '500',
+      marginBottom: 4,
+    },
+    bookDetails: {
+      fontSize: 14,
+      color: mutedText,
+      marginBottom: 2,
+    },
+    bookType: {
+      fontSize: 13,
+      color: mutedText,
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: secondaryBackground,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 20,
+      borderBottomWidth: 1,
+      borderBottomColor: borderColor,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: textColor,
+    },
+    modalContent: {
+      flex: 1,
+      padding: 20,
+    },
+    fullReportContainer: {
+      padding: 20,
+    },
+    fullReportHeader: {
+      backgroundColor: isDark ? '#2C2C2E' : '#FFF4E6',
+      borderRadius: 12,
+      padding: 20,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: isDark ? '#3A3A3C' : '#FFE4CC',
+    },
+    fullReportTitle: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: primaryColor,
+      marginBottom: 8,
+    },
+    fullReportSubtitle: {
+      fontSize: 14,
+      color: mutedText,
+      marginBottom: 4,
+    },
+    fullReportDate: {
+      fontSize: 12,
+      color: placeholderText,
+    },
+    summaryCard: {
+      flex: 1,
+      backgroundColor: cardBackground,
+      borderRadius: 12,
+      padding: 16,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: borderColor,
+      shadowColor: isDark ? '#000' : '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.3 : 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    summaryNumber: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: primaryColor,
+      marginBottom: 4,
+    },
+    summaryLabel: {
+      fontSize: 12,
+      color: mutedText,
+      textAlign: 'center',
+    },
+    fullReportBookItem: {
+      backgroundColor: cardBackground,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: borderColor,
+      shadowColor: isDark ? '#000' : '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: isDark ? 0.3 : 0.05,
+      shadowRadius: 2,
+      elevation: 2,
+    },
+    fullReportBookTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: textColor,
+      flex: 1,
+      marginRight: 12,
+      lineHeight: 22,
+    },
+    fullReportBookDetailText: {
+      marginLeft: 6,
+      fontSize: 14,
+      color: mutedText,
+    },
+    fullReportBookTotalText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: primaryColor,
+    },
+  });
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={themeStyles.container}>
+      <View style={themeStyles.header}>
         <View>
-          <Text style={styles.headerText}>BBT Africa Connect</Text>
-          <Text style={styles.headerSubText}>Hare Krishna Book Distribution</Text>
+          <Text style={themeStyles.headerText}>BBT Africa Connect</Text>
+          <Text style={themeStyles.headerSubText}>Hare Krishna Book Distribution</Text>
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity 
             style={styles.helpButton}
             onPress={() => setShowGuide(true)}
           >
-            <Ionicons name="help-circle-outline" size={24} color="#FF6B00" />
+            <Ionicons name="help-circle-outline" size={24} color={primaryColor} />
           </TouchableOpacity>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>Admin</Text>
@@ -842,35 +1021,35 @@ export default function AdminBookLogging() {
 
       <ScrollView style={styles.content}>
         {/* Report Selection */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Report Period</Text>
+        <View style={themeStyles.section}>
+          <Text style={themeStyles.sectionTitle}>Report Period</Text>
           
           <View style={styles.row}>
             <View style={styles.flex1}>
-              <Text style={styles.label}>Month</Text>
-              <View style={styles.pickerContainer}>
+              <Text style={themeStyles.label}>Month</Text>
+              <View style={[styles.pickerContainer, { borderColor: borderColor, backgroundColor: cardBackground }]}>
                 <Picker
                   selectedValue={currentReport.month}
                   onValueChange={(value) => setCurrentReport(prev => ({ ...prev, month: value }))}
-                  style={styles.picker}
+                  style={[styles.picker, { color: textColor }]}
                 >
                   {MONTHS.map(month => (
-                    <Picker.Item key={month} label={month} value={month} />
+                    <Picker.Item key={month} label={month} value={month} color={textColor} />
                   ))}
                 </Picker>
               </View>
             </View>
             
             <View style={styles.flex1}>
-              <Text style={styles.label}>Year</Text>
-              <View style={styles.pickerContainer}>
+              <Text style={themeStyles.label}>Year</Text>
+              <View style={[styles.pickerContainer, { borderColor: borderColor, backgroundColor: cardBackground }]}>
                 <Picker
                   selectedValue={currentReport.year}
                   onValueChange={(value) => setCurrentReport(prev => ({ ...prev, year: value }))}
-                  style={styles.picker}
+                  style={[styles.picker, { color: textColor }]}
                 >
                   {YEARS.map(year => (
-                    <Picker.Item key={year} label={year.toString()} value={year} />
+                    <Picker.Item key={year} label={year.toString()} value={year} color={textColor} />
                   ))}
                 </Picker>
               </View>
@@ -879,15 +1058,15 @@ export default function AdminBookLogging() {
         </View>
 
         {/* Manual Book Entry */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Add Books Manually</Text>
+        <View style={themeStyles.section}>
+          <Text style={themeStyles.sectionTitle}>Add Books Manually</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Book Title *</Text>
+            <Text style={themeStyles.label}>Book Title *</Text>
             {loadingBooks ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#FF8C42" />
-                <Text style={styles.text}>Loading books...</Text>
+              <View style={[styles.loadingContainer, { borderColor: borderColor, backgroundColor: isDark ? '#2C2C2E' : '#F9F9F9' }]}>
+                <ActivityIndicator size="small" color={primaryLight} />
+                <Text style={themeStyles.text}>Loading books...</Text>
               </View>
             ) : (
               <>
@@ -901,10 +1080,11 @@ export default function AdminBookLogging() {
                 ) : (
                   <View>
                     <TextInput
-                      style={styles.input}
+                      style={[themeStyles.input, { color: textColor }]}
                       value={bookEntry.title}
                       onChangeText={(text) => setBookEntry(prev => ({ ...prev, title: text }))}
                       placeholder="Enter book title manually"
+                      placeholderTextColor={placeholderText}
                     />
                     <TouchableOpacity
                       style={styles.switchButton}
@@ -924,46 +1104,49 @@ export default function AdminBookLogging() {
 
           <View style={styles.row}>
             <View style={styles.flex1}>
-              <Text style={styles.label}>Quantity *</Text>
+              <Text style={themeStyles.label}>Quantity *</Text>
               <TextInput
-                style={styles.input}
+                style={[themeStyles.input, { color: textColor }]}
                 value={bookEntry.quantity.toString()}
                 onChangeText={(text) => setBookEntry(prev => ({ ...prev, quantity: parseInt(text) || 1 }))}
                 placeholder="Quantity"
+                placeholderTextColor={placeholderText}
                 keyboardType="number-pad"
               />
             </View>
             
             <View style={styles.flex1}>
-              <Text style={styles.label}>Points per Book *</Text>
+              <Text style={themeStyles.label}>Points per Book *</Text>
               <TextInput
-                style={styles.input}
+                style={[themeStyles.input, { color: textColor }]}
                 value={bookEntry.points.toString()}
                 onChangeText={(text) => setBookEntry(prev => ({ ...prev, points: parseInt(text) || 5 }))}
                 placeholder="Points"
+                placeholderTextColor={placeholderText}
                 keyboardType="number-pad"
               />
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Publisher</Text>
+            <Text style={themeStyles.label}>Publisher</Text>
             <TextInput
-              style={styles.input}
+              style={[themeStyles.input, { color: textColor }]}
               value={bookEntry.publisher}
               onChangeText={(text) => setBookEntry(prev => ({ ...prev, publisher: text }))}
               placeholder="Publisher name"
+              placeholderTextColor={placeholderText}
             />
           </View>
 
           <View style={styles.checkboxRow}>
             <TouchableOpacity
-              style={[styles.checkbox, bookEntry.isBBTBook && styles.checkboxChecked]}
+              style={[styles.checkbox, { borderColor: borderColor }, bookEntry.isBBTBook && styles.checkboxChecked]}
               onPress={() => setBookEntry(prev => ({ ...prev, isBBTBook: !prev.isBBTBook }))}
             >
               {bookEntry.isBBTBook && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
             </TouchableOpacity>
-            <Text style={styles.text}>This is a BBT Book</Text>
+            <Text style={themeStyles.text}>This is a BBT Book</Text>
           </View>
 
           <TouchableOpacity style={styles.primaryButton} onPress={addBookToReport}>
@@ -974,26 +1157,26 @@ export default function AdminBookLogging() {
 
         {/* Current Report Books */}
         {currentReport.books && currentReport.books.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
+          <View style={themeStyles.section}>
+            <Text style={themeStyles.sectionTitle}>
               Current Report ({currentReport.books.length} books)
             </Text>
-            <View style={styles.totalsContainer}>
-              <Text style={styles.text}>Total Books: {currentReportTotals.totalBooks}</Text>
-              <Text style={styles.text}>Total Points: {currentReportTotals.totalPoints}</Text>
+            <View style={[styles.totalsContainer, { backgroundColor: isDark ? '#2C2C2E' : '#FFF4E6', borderColor: isDark ? '#3A3A3C' : '#FFE4CC' }]}>
+              <Text style={themeStyles.text}>Total Books: {currentReportTotals.totalBooks}</Text>
+              <Text style={themeStyles.text}>Total Points: {currentReportTotals.totalPoints}</Text>
             </View>
 
             {currentReport.books.map((book, index) => (
-              <View key={index} style={styles.bookItem}>
+              <View key={index} style={themeStyles.bookItem}>
                 <View style={styles.flex1}>
-                  <Text style={styles.bookTitle}>
+                  <Text style={themeStyles.bookTitle}>
                     {book.title}
                     {book.bookId ? ' 📚' : ''}
                   </Text>
-                  <Text style={styles.bookDetails}>
+                  <Text style={themeStyles.bookDetails}>
                     {book.bookId ? `ID: ${book.bookId} | ` : ''}Qty: {book.quantity} | Points: {book.points} each | {book.publisher}
                   </Text>
-                  <Text style={styles.bookType}>
+                  <Text style={themeStyles.bookType}>
                     {book.isBBTBook ? '🟢 BBT Book' : '🔵 Other Book'} | Total Points: {book.quantity * book.points}
                   </Text>
                 </View>
@@ -1024,9 +1207,9 @@ export default function AdminBookLogging() {
         )}
 
         {/* Bulk Upload */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Bulk Upload</Text>
-          <Text style={styles.description}>
+        <View style={themeStyles.section}>
+          <Text style={themeStyles.sectionTitle}>Bulk Upload</Text>
+          <Text style={themeStyles.description}>
             Upload a CSV file with book entries for the selected month/year. 
             Include bookId column for books from the library (leave empty for manual entries).
           </Text>
@@ -1049,29 +1232,29 @@ export default function AdminBookLogging() {
         </View>
 
         {/* Report Generation */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Generate Statistics Report</Text>
-          <Text style={styles.description}>
+        <View style={themeStyles.section}>
+          <Text style={themeStyles.sectionTitle}>Generate Statistics Report</Text>
+          <Text style={themeStyles.description}>
             Generate comprehensive PDF or Excel reports with detailed statistics from all your book distribution data.
           </Text>
           
           {statistics && (
-            <View style={styles.statsPreview}>
+            <View style={[styles.statsPreview, { backgroundColor: isDark ? '#2C2C2E' : '#FFF4E6', borderColor: isDark ? '#3A3A3C' : '#FFE4CC' }]}>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{statistics.totalReports}</Text>
-                <Text style={styles.statLabel}>Total Reports</Text>
+                <Text style={[styles.statNumber, { color: primaryColor }]}>{statistics.totalReports}</Text>
+                <Text style={[styles.statLabel, { color: mutedText }]}>Total Reports</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{statistics.totalBooksDistributed.toLocaleString()}</Text>
-                <Text style={styles.statLabel}>Books Distributed</Text>
+                <Text style={[styles.statNumber, { color: primaryColor }]}>{statistics.totalBooksDistributed.toLocaleString()}</Text>
+                <Text style={[styles.statLabel, { color: mutedText }]}>Books Distributed</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{statistics.totalPointsEarned.toLocaleString()}</Text>
-                <Text style={styles.statLabel}>Points Earned</Text>
+                <Text style={[styles.statNumber, { color: primaryColor }]}>{statistics.totalPointsEarned.toLocaleString()}</Text>
+                <Text style={[styles.statLabel, { color: mutedText }]}>Points Earned</Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{statistics.bbtVsOtherBooks.bbtPercentage.toFixed(1)}%</Text>
-                <Text style={styles.statLabel}>BBT Books</Text>
+                <Text style={[styles.statNumber, { color: primaryColor }]}>{statistics.bbtVsOtherBooks.bbtPercentage.toFixed(1)}%</Text>
+                <Text style={[styles.statLabel, { color: mutedText }]}>BBT Books</Text>
               </View>
             </View>
           )}
@@ -1091,32 +1274,24 @@ export default function AdminBookLogging() {
             )}
           </TouchableOpacity>
 
-          {/* Debug Test Button */}
-          <TouchableOpacity
-            style={[styles.secondaryButton, { marginTop: 12 }]}
-            onPress={testReportGeneration}
-          >
-            <Ionicons name="bug-outline" size={20} color="#FF6B00" />
-            <Text style={styles.secondaryButtonText}>Test Report Generation</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Reports History */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Reports History ({reports.length})</Text>
+        <View style={themeStyles.section}>
+          <Text style={themeStyles.sectionTitle}>Reports History ({reports.length})</Text>
           {loadingReports ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#FF8C42" />
-              <Text style={styles.text}>Loading reports...</Text>
+            <View style={[styles.loadingContainer, { borderColor: borderColor, backgroundColor: isDark ? '#2C2C2E' : '#F9F9F9' }]}>
+              <ActivityIndicator size="small" color={primaryLight} />
+              <Text style={themeStyles.text}>Loading reports...</Text>
             </View>
           ) : reports.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No reports uploaded yet</Text>
+              <Text style={[styles.emptyText, { color: mutedText }]}>No reports uploaded yet</Text>
               <TouchableOpacity 
                 style={styles.secondaryButton} 
                 onPress={fetchReports}
               >
-                <Ionicons name="refresh-outline" size={20} color="#FF6B00" />
+                <Ionicons name="refresh-outline" size={20} color={primaryColor} />
                 <Text style={styles.secondaryButtonText}>Refresh</Text>
               </TouchableOpacity>
             </View>
@@ -1125,43 +1300,51 @@ export default function AdminBookLogging() {
               const reportKey = report.id || `${report.month}-${report.year}-${index}`;
               const isExpanded = !!expandedReports[reportKey];
               return (
-                <View key={reportKey} style={styles.reportCard}>
+                <View key={reportKey} style={themeStyles.reportCard}>
                   <TouchableOpacity
                     style={styles.reportHeader}
                     onPress={() => toggleReportExpand(reportKey)}
                   >
-                    <Text style={styles.reportTitle}>
+                    <Text style={themeStyles.reportTitle}>
                       {report.month} {report.year}
                     </Text>
                     <Ionicons 
                       name={isExpanded ? 'chevron-up' : 'chevron-down'} 
                       size={18} 
-                      color="#FF6B00" 
+                      color={primaryColor} 
                     />
                   </TouchableOpacity>
                   
-                  <Text style={styles.reportStats}>
+                  <Text style={themeStyles.reportStats}>
                     📚 Books: {report.totalBooks} | ⭐ Points: {report.totalPoints}
                   </Text>
                   
-                  <Text style={styles.reportFile}>📄 {report.fileName}</Text>
+                  <Text style={themeStyles.reportFile}>📄 {report.fileName}</Text>
                   
-                  <Text style={styles.reportDetails}>
+                  <Text style={themeStyles.reportDetails}>
                     {report.books?.length || 0} unique titles • {formatUploadDate(report.uploadedAt)}
                   </Text>
+
+                  <TouchableOpacity
+                    style={[styles.viewFullButton, { backgroundColor: isDark ? '#2C2C2E' : '#FFF4E6', borderColor: isDark ? '#3A3A3C' : '#FFE4CC' }]}
+                    onPress={() => viewFullReport(report)}
+                  >
+                    <Ionicons name="eye-outline" size={16} color={primaryColor} />
+                    <Text style={[styles.viewFullButtonText, { color: primaryColor }]}>View Full Report</Text>
+                  </TouchableOpacity>
 
                   {isExpanded && (
                     <View style={styles.expandedContent}>
                       {(report.books || []).map((book, bIndex) => (
-                        <View key={`${reportKey}-${bIndex}`} style={styles.expandedBookItem}>
-                          <Text style={styles.bookTitle}>
+                        <View key={`${reportKey}-${bIndex}`} style={[styles.expandedBookItem, { backgroundColor: isDark ? '#2C2C2E' : '#FFF9F5', borderColor: isDark ? '#3A3A3C' : '#FFE4CC' }]}>
+                          <Text style={themeStyles.bookTitle}>
                             {book.title}
                             {book.bookId ? ' 📚' : ''}
                           </Text>
-                          <Text style={styles.bookDetails}>
+                          <Text style={themeStyles.bookDetails}>
                             Qty: {book.quantity} | Points: {book.points} each
                           </Text>
-                          <Text style={styles.bookType}>
+                          <Text style={themeStyles.bookType}>
                             {book.isBBTBook ? '🟢 BBT' : '🔵 Other'} • Total: {book.quantity * book.points} pts
                           </Text>
                         </View>
@@ -1182,33 +1365,33 @@ export default function AdminBookLogging() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowReportModal(false)}
       >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
+        <SafeAreaView style={themeStyles.modalContainer}>
+          <View style={themeStyles.modalHeader}>
             <TouchableOpacity 
               style={styles.closeButton} 
               onPress={() => setShowReportModal(false)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="close" size={24} color="#333" />
+              <Ionicons name="close" size={24} color={textColor} />
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Generate Report</Text>
+            <Text style={themeStyles.modalTitle}>Generate Report</Text>
             <View style={styles.headerSpacer} />
           </View>
 
-          <ScrollView style={styles.modalContent}>
+          <ScrollView style={themeStyles.modalContent}>
             <View style={styles.reportOptionsContainer}>
-              <Text style={styles.reportOptionsTitle}>Choose Report Format</Text>
-              <Text style={styles.reportOptionsDescription}>
+              <Text style={[styles.reportOptionsTitle, { color: textColor }]}>Choose Report Format</Text>
+              <Text style={[styles.reportOptionsDescription, { color: mutedText }]}>
                 Select the format for your comprehensive statistics report
               </Text>
 
               {/* PDF Options */}
-              <View style={styles.reportOptionCard}>
+              <View style={[styles.reportOptionCard, { backgroundColor: cardBackground, borderColor: borderColor }]}>
                 <View style={styles.reportOptionHeader}>
-                  <Ionicons name="document-text-outline" size={24} color="#FF6B00" />
-                  <Text style={styles.reportOptionTitle}>PDF Report</Text>
+                  <Ionicons name="document-text-outline" size={24} color={primaryColor} />
+                  <Text style={[styles.reportOptionTitle, { color: textColor }]}>PDF Report</Text>
                 </View>
-                <Text style={styles.reportOptionDescription}>
+                <Text style={[styles.reportOptionDescription, { color: mutedText }]}>
                   Professional PDF with charts, tables, and executive summary
                 </Text>
                 
@@ -1238,28 +1421,15 @@ export default function AdminBookLogging() {
                   </TouchableOpacity>
                 </View>
                 
-                <View style={styles.reportOptionButtons}>
-                  <TouchableOpacity
-                    style={[styles.reportOptionButton, styles.manualButton]}
-                    onPress={() => {
-                      setShowReportModal(false);
-                      handleManualDownload('pdf', 'summary');
-                    }}
-                    disabled={generatingReport}
-                  >
-                    <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-                    <Text style={styles.reportOptionButtonText}>Manual PDF Download</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
 
               {/* Excel Option */}
-              <View style={styles.reportOptionCard}>
+              <View style={[styles.reportOptionCard, { backgroundColor: cardBackground, borderColor: borderColor }]}>
                 <View style={styles.reportOptionHeader}>
                   <Ionicons name="grid-outline" size={24} color="#4CAF50" />
-                  <Text style={styles.reportOptionTitle}>Excel Report</Text>
+                  <Text style={[styles.reportOptionTitle, { color: textColor }]}>Excel Report</Text>
                 </View>
-                <Text style={styles.reportOptionDescription}>
+                <Text style={[styles.reportOptionDescription, { color: mutedText }]}>
                   Comprehensive spreadsheet with multiple sheets for detailed analysis
                 </Text>
                 
@@ -1275,50 +1445,151 @@ export default function AdminBookLogging() {
                   <Text style={styles.reportOptionButtonText}>Generate Excel Report</Text>
                 </TouchableOpacity>
                 
-                <TouchableOpacity
-                  style={[styles.reportOptionButton, styles.manualButton]}
-                  onPress={() => {
-                    setShowReportModal(false);
-                    handleManualDownload('excel');
-                  }}
-                  disabled={generatingReport}
-                >
-                  <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-                  <Text style={styles.reportOptionButtonText}>Manual Excel Download</Text>
-                </TouchableOpacity>
               </View>
 
               {/* Report Features */}
-              <View style={styles.featuresContainer}>
-                <Text style={styles.featuresTitle}>Report Includes:</Text>
+              <View style={[styles.featuresContainer, { backgroundColor: isDark ? '#2C2C2E' : '#F8F9FA' }]}>
+                <Text style={[styles.featuresTitle, { color: textColor }]}>Report Includes:</Text>
                 <View style={styles.featuresList}>
                   <View style={styles.featureItem}>
                     <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-                    <Text style={styles.featureText}>Executive Summary with Key Metrics</Text>
+                    <Text style={[styles.featureText, { color: mutedText }]}>Executive Summary with Key Metrics</Text>
                   </View>
                   <View style={styles.featureItem}>
                     <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-                    <Text style={styles.featureText}>Top Publishers Analysis</Text>
+                    <Text style={[styles.featureText, { color: mutedText }]}>Top Publishers Analysis</Text>
                   </View>
                   <View style={styles.featureItem}>
                     <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-                    <Text style={styles.featureText}>Monthly Distribution Breakdown</Text>
+                    <Text style={[styles.featureText, { color: mutedText }]}>Monthly Distribution Breakdown</Text>
                   </View>
                   <View style={styles.featureItem}>
                     <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-                    <Text style={styles.featureText}>Top Distributed Books</Text>
+                    <Text style={[styles.featureText, { color: mutedText }]}>Top Distributed Books</Text>
                   </View>
                   <View style={styles.featureItem}>
                     <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-                    <Text style={styles.featureText}>BBT vs Other Books Analysis</Text>
+                    <Text style={[styles.featureText, { color: mutedText }]}>BBT vs Other Books Analysis</Text>
                   </View>
                   <View style={styles.featureItem}>
                     <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-                    <Text style={styles.featureText}>Year-over-Year Comparison</Text>
+                    <Text style={[styles.featureText, { color: mutedText }]}>Year-over-Year Comparison</Text>
                   </View>
                 </View>
               </View>
             </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Full Report View Modal */}
+      <Modal
+        visible={showFullReportModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowFullReportModal(false)}
+      >
+        <SafeAreaView style={themeStyles.modalContainer}>
+          <View style={themeStyles.modalHeader}>
+            <TouchableOpacity 
+              style={styles.closeButton} 
+              onPress={() => setShowFullReportModal(false)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close" size={24} color={textColor} />
+            </TouchableOpacity>
+            <Text style={themeStyles.modalTitle}>
+              {selectedFullReport ? `${selectedFullReport.month} ${selectedFullReport.year}` : 'Full Report'}
+            </Text>
+            <View style={styles.headerSpacer} />
+          </View>
+
+          <ScrollView style={themeStyles.modalContent}>
+            {selectedFullReport && (
+              <View style={themeStyles.fullReportContainer}>
+                {/* Report Header */}
+                <View style={themeStyles.fullReportHeader}>
+                  <Text style={themeStyles.fullReportTitle}>
+                    {selectedFullReport.month} {selectedFullReport.year} Report
+                  </Text>
+                  <Text style={themeStyles.fullReportSubtitle}>
+                    📄 {selectedFullReport.fileName}
+                  </Text>
+                  <Text style={themeStyles.fullReportDate}>
+                    Uploaded: {formatUploadDate(selectedFullReport.uploadedAt)}
+                  </Text>
+                </View>
+
+                {/* Report Summary */}
+                <View style={styles.fullReportSummary}>
+                  <View style={themeStyles.summaryCard}>
+                    <Text style={themeStyles.summaryNumber}>{selectedFullReport.totalBooks}</Text>
+                    <Text style={themeStyles.summaryLabel}>Total Books</Text>
+                  </View>
+                  <View style={themeStyles.summaryCard}>
+                    <Text style={themeStyles.summaryNumber}>{selectedFullReport.totalPoints}</Text>
+                    <Text style={themeStyles.summaryLabel}>Total Points</Text>
+                  </View>
+                  <View style={themeStyles.summaryCard}>
+                    <Text style={themeStyles.summaryNumber}>{selectedFullReport.books?.length || 0}</Text>
+                    <Text style={themeStyles.summaryLabel}>Unique Titles</Text>
+                  </View>
+                </View>
+
+                {/* Books List */}
+                <View style={styles.fullReportBooks}>
+                  <Text style={[styles.fullReportSectionTitle, { color: textColor }]}>Books Distributed</Text>
+                  {(selectedFullReport.books || []).map((book, index) => (
+                    <View key={index} style={themeStyles.fullReportBookItem}>
+                      <View style={styles.fullReportBookHeader}>
+                        <Text style={themeStyles.fullReportBookTitle}>
+                          {book.title}
+                          {book.bookId && ' 📚'}
+                        </Text>
+                        <View style={[
+                          styles.fullReportBookType,
+                          { backgroundColor: book.isBBTBook ? '#E8F5E8' : '#E3F2FD' }
+                        ]}>
+                          <Text style={[
+                            styles.fullReportBookTypeText,
+                            { color: book.isBBTBook ? '#2E7D32' : '#1976D2' }
+                          ]}>
+                            {book.isBBTBook ? 'BBT' : 'Other'}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      <View style={styles.fullReportBookDetails}>
+                        <View style={styles.fullReportBookDetail}>
+                          <Ionicons name="library-outline" size={16} color={mutedText} />
+                          <Text style={themeStyles.fullReportBookDetailText}>
+                            Quantity: {book.quantity}
+                          </Text>
+                        </View>
+                        <View style={styles.fullReportBookDetail}>
+                          <Ionicons name="star-outline" size={16} color={mutedText} />
+                          <Text style={themeStyles.fullReportBookDetailText}>
+                            Points: {book.points} each
+                          </Text>
+                        </View>
+                        <View style={styles.fullReportBookDetail}>
+                          <Ionicons name="business-outline" size={16} color={mutedText} />
+                          <Text style={themeStyles.fullReportBookDetailText}>
+                            {book.publisher}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      <View style={styles.fullReportBookTotal}>
+                        <Text style={themeStyles.fullReportBookTotalText}>
+                          Total Points: {book.quantity * book.points}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -1993,9 +2264,6 @@ const styles = StyleSheet.create({
   excelButton: {
     backgroundColor: '#4CAF50',
   },
-  manualButton: {
-    backgroundColor: '#9C27B0',
-  },
   reportOptionButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
@@ -2027,5 +2295,161 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     flex: 1,
+  },
+
+  // Full Report View Styles
+  viewFullButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFF4E6',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFE4CC',
+    marginTop: 8,
+  },
+  viewFullButtonText: {
+    marginLeft: 6,
+    fontSize: 14,
+    color: '#FF6B00',
+    fontWeight: '500',
+  },
+
+  // Full Report Modal Styles
+  fullReportContainer: {
+    padding: 20,
+  },
+  fullReportHeader: {
+    backgroundColor: '#FFF4E6',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FFE4CC',
+  },
+  fullReportTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FF6B00',
+    marginBottom: 8,
+  },
+  fullReportSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  fullReportDate: {
+    fontSize: 12,
+    color: '#999',
+  },
+
+  // Summary Cards
+  fullReportSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    gap: 12,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  summaryNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FF6B00',
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+  },
+
+  // Books Section
+  fullReportBooks: {
+    marginBottom: 20,
+  },
+  fullReportSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
+  },
+  fullReportBookItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  fullReportBookHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  fullReportBookTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    flex: 1,
+    marginRight: 12,
+    lineHeight: 22,
+  },
+  fullReportBookType: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  fullReportBookTypeText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  fullReportBookDetails: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 12,
+  },
+  fullReportBookDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: '30%',
+  },
+  fullReportBookDetailText: {
+    marginLeft: 6,
+    fontSize: 14,
+    color: '#666',
+  },
+  fullReportBookTotal: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 8,
+    alignItems: 'center',
+  },
+  fullReportBookTotalText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF6B00',
   },
 });
