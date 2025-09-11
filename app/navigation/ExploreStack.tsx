@@ -1,9 +1,10 @@
-import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import Explore from "../../screens/Explore";
+import React from "react";
 import Book from "../../screens/Book";
 import Clubs from "../../screens/Clubs";
+import Explore from "../../screens/Explore";
 import Groups from "../../screens/Groups";
+import RegionDetails from "../../screens/RegionDetails";
 import Regions from "../../screens/Regions";
 import Temples from "../../screens/Temples";
 
@@ -14,6 +15,7 @@ export type ExploreStackParamList = {
   Clubs: undefined;
   Groups: undefined;
   Regions: undefined; 
+  RegionDetails: { region: import("../../models/region.model").Region };
 };
 
 const Stack = createNativeStackNavigator<ExploreStackParamList>();
@@ -45,6 +47,11 @@ export default function AdminManagementStack() {
         name="Regions" 
         component={Regions}
         options={{ title: "Regions" }}
+      />
+      <Stack.Screen 
+        name="RegionDetails" 
+        component={RegionDetails}
+        options={{ title: "Region Details" }}
       />
       <Stack.Screen 
         name="Temples" 

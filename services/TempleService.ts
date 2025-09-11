@@ -1,17 +1,17 @@
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  getDocs, 
-  getDoc,
-  query,
-  where,
-  orderBy,
-  DocumentData,
-  QueryDocumentSnapshot,
-  Timestamp
+import {
+    addDoc,
+    collection,
+    deleteDoc,
+    doc,
+    DocumentData,
+    getDoc,
+    getDocs,
+    orderBy,
+    query,
+    QueryDocumentSnapshot,
+    Timestamp,
+    updateDoc,
+    where
 } from 'firebase/firestore';
 import { db } from '../firebaseCo';
 
@@ -99,10 +99,10 @@ export const TempleService = {
   async getTemplesByRegion(regionId: string): Promise<Temple[]> {
     try {
       const templesRef = collection(db, TEMPLES_COLLECTION);
+      // Remove orderBy to avoid composite index requirement; sort client-side instead
       const q = query(
-        templesRef, 
-        where('regionId', '==', regionId),
-        orderBy('name', 'asc')
+        templesRef,
+        where('regionId', '==', regionId)
       );
       const querySnapshot = await getDocs(q);
       
@@ -113,7 +113,10 @@ export const TempleService = {
           ...doc.data()
         } as Temple);
       });
-      
+
+      // Sort locally by name to keep UI consistent
+      temples.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
       return temples;
     } catch (error) {
       console.error('Error getting temples by region:', error);

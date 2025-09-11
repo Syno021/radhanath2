@@ -1,4 +1,4 @@
-import { collection, addDoc, updateDoc, deleteDoc, getDocs, doc, getDoc, arrayUnion } from 'firebase/firestore';
+import { addDoc, arrayUnion, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { db } from '../firebaseCo';
 import { WhatsappGroup } from '../models/whatsappGroup.model';
 
@@ -19,6 +19,24 @@ export const getWhatsappGroupById = async (id: string): Promise<WhatsappGroup | 
     return { id: docSnap.id, ...docSnap.data() } as WhatsappGroup;
   }
   return null;
+};
+
+// Batch fetch groups by IDs using Firestore 'in' queries (chunked by 10)
+export const getWhatsappGroupsByIds = async (ids: string[]): Promise<WhatsappGroup[]> => {
+  if (!Array.isArray(ids) || ids.length === 0) return [];
+  const unique = Array.from(new Set(ids.filter(Boolean)));
+  const chunks: string[][] = [];
+  for (let i = 0; i < unique.length; i += 10) chunks.push(unique.slice(i, i + 10));
+
+  const results: WhatsappGroup[] = [];
+  for (const chunk of chunks) {
+    const q = query(collection(db, COLLECTION_NAME), where('__name__', 'in', chunk));
+    const snap = await getDocs(q);
+    snap.forEach((d) => {
+      results.push({ id: d.id, ...d.data() } as WhatsappGroup);
+    });
+  }
+  return results;
 };
 
 export const addWhatsappGroup = async (group: Omit<WhatsappGroup, 'id'>): Promise<string> => {

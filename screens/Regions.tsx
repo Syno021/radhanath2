@@ -1,15 +1,17 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { useHotReload } from '../services/ScrollableService';
-import { SafeAreaView, View, Text, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, TextInput, Dimensions } from 'react-native';
 import { Ionicons } from "@expo/vector-icons";
-import { getRegions } from '../services/regionService';
+import { useNavigation } from '@react-navigation/native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Dimensions, FlatList, RefreshControl, SafeAreaView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Region } from '../models/region.model';
+import { getRegions } from '../services/regionService';
+import { useHotReload } from '../services/ScrollableService';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function AdminBooks() {
   // React Native FlatList ref
   const flatListRef = useRef<FlatList<Region>>(null);
+  const navigation = useNavigation<any>();
   
   // Scroll state for React Native
   const [scrollPosition, setScrollPosition] = useState(0);
@@ -152,9 +154,14 @@ export default function AdminBooks() {
                   {item.numberoftemples ?? 0} temples • {item.ReadingClubs?.length ?? 0} clubs
                 </Text>
               </View>
-              <View style={styles.arrowContainer}>
+              <TouchableOpacity
+                style={styles.arrowContainer}
+                onPress={() => navigation.navigate('RegionDetails', { region: item })}
+                accessibilityRole="button"
+                accessibilityLabel={`View details for ${item.name}`}
+              >
                 <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
