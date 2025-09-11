@@ -1,23 +1,23 @@
 //services/userService.tsx
-import { auth, db } from "../firebaseCo";
-import {
-  doc,
-  getDoc,
-  onSnapshot,
-  updateDoc,
-  serverTimestamp,
-  arrayUnion,
-  arrayRemove,
-} from "firebase/firestore";
-import {
-  onAuthStateChanged,
-  signOut,
-  sendPasswordResetEmail,
-  updateProfile,
-  User as FirebaseUser,
-} from "firebase/auth";
 import * as ImagePicker from 'expo-image-picker';
+import {
+    User as FirebaseUser,
+    onAuthStateChanged,
+    sendPasswordResetEmail,
+    signOut,
+    updateProfile,
+} from "firebase/auth";
+import {
+    arrayRemove,
+    arrayUnion,
+    doc,
+    getDoc,
+    onSnapshot,
+    serverTimestamp,
+    updateDoc,
+} from "firebase/firestore";
 import { Alert } from 'react-native';
+import { auth, db } from "../firebaseCo";
 import { User } from "../models/user.model"; // ✅ Import from models folder
 
 const ProfileService = {
@@ -485,6 +485,58 @@ const ProfileService = {
       return userProfile.joinedReadingClubs.includes(clubId);
     } catch (error) {
       console.error('Error checking if user joined reading club:', error);
+      return false;
+    }
+  },
+
+  // ==========================================
+  // FAVORITES / SAVED BOOKS MANAGEMENT
+  // ==========================================
+
+  /** Add a book to the current user's savedBooks */
+  saveBookForCurrentUser: async (bookId: string): Promise<void> => {
+    const userId = ProfileService.getCurrentUserId();
+    if (!userId) {
+      throw new Error('No authenticated user found');
+    }
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        savedBooks: arrayUnion(bookId),
+        lastActive: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Error saving book for user:', error);
+      throw new Error('Failed to save book');
+    }
+  },
+
+  /** Remove a book from the current user's savedBooks */
+  removeSavedBookForCurrentUser: async (bookId: string): Promise<void> => {
+    const userId = ProfileService.getCurrentUserId();
+    if (!userId) {
+      throw new Error('No authenticated user found');
+    }
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        savedBooks: arrayRemove(bookId),
+        lastActive: serverTimestamp(),
+      });
+    } catch (error) {
+      console.error('Error removing saved book for user:', error);
+      throw new Error('Failed to remove saved book');
+    }
+  },
+
+  /** Check if a book is saved by current user */
+  isBookSavedByCurrentUser: async (bookId: string): Promise<boolean> => {
+    try {
+      const profile = await ProfileService.getCurrentUserProfile();
+      if (!profile || !profile.savedBooks) return false;
+      return profile.savedBooks.includes(bookId);
+    } catch (error) {
+      console.error('Error checking saved book:', error);
       return false;
     }
   },

@@ -13,5 +13,6 @@ export interface User {
   bookInterests?: string[];
   joinedGroups?: string[];
   joinedReadingClubs?: string[];
+  savedBooks?: string[];
   role: 'user' | 'admin' | 'facilitator';
 }

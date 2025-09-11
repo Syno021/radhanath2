@@ -17,6 +17,7 @@ import {
   View
 } from 'react-native';
 import { db } from '../firebaseCo';
+import ProfileService from '../services/userService';
 
 interface Book {
   id: string;
@@ -42,6 +43,8 @@ interface FilterState {
 export default function Books() {
   const [books, setBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [savedBookIds, setSavedBookIds] = useState<string[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     category: '',
     language: '',
@@ -56,6 +59,7 @@ export default function Books() {
     format: '',
     searchText: ''
   });
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
 
   const [categories, setCategories] = useState<string[]>([]);
   const [languages, setLanguages] = useState<string[]>([]);
@@ -67,6 +71,31 @@ export default function Books() {
 
   useEffect(() => {
     fetchBooks();
+  }, []);
+
+  // Subscribe to auth and user savedBooks
+  useEffect(() => {
+    const unsubscribeAuth = ProfileService.subscribeToAuth((user) => {
+      setCurrentUserId(user?.uid || null);
+      if (user?.uid) {
+        const unsubscribeUser = ProfileService.subscribeToUserData(
+          user.uid,
+          (data) => setSavedBookIds(data?.savedBooks || []),
+          () => setSavedBookIds([])
+        );
+        // Tie the lifecycle: clean up user subscription when auth subscriber is cleaned
+        (unsubscribeAuth as unknown as any)._childUnsub = unsubscribeUser;
+      } else {
+        setSavedBookIds([]);
+      }
+    });
+    return () => {
+      const anyUnsub: any = unsubscribeAuth;
+      if (anyUnsub?._childUnsub) {
+        try { anyUnsub._childUnsub(); } catch {}
+      }
+      unsubscribeAuth();
+    };
   }, []);
 
   // Debounce search text for smoother typing and fewer re-renders
@@ -120,6 +149,22 @@ export default function Books() {
     }
   };
 
+  const toggleSaveBook = async (bookId: string) => {
+    try {
+      if (!currentUserId) {
+        console.warn('Please login to save books');
+        return;
+      }
+      if (savedBookIds.includes(bookId)) {
+        await ProfileService.removeSavedBookForCurrentUser(bookId);
+      } else {
+        await ProfileService.saveBookForCurrentUser(bookId);
+      }
+    } catch (error) {
+      console.error('Failed to toggle saved book:', error);
+    }
+  };
+
   const clearAllFilters = () => {
     setFilters({
       category: '',
@@ -162,9 +207,10 @@ export default function Books() {
       const matchesSearch = !normalizedSearch ||
         book.title.toLowerCase().includes(normalizedSearch) ||
         book.author.toLowerCase().includes(normalizedSearch);
-      return matchesCategory && matchesLanguage && matchesFormat && matchesSearch;
+      const matchesSaved = !showSavedOnly || savedBookIds.includes(book.id);
+      return matchesCategory && matchesLanguage && matchesFormat && matchesSearch && matchesSaved;
     });
-  }, [books, filters.category, filters.language, filters.format, debouncedSearchText]);
+  }, [books, filters.category, filters.language, filters.format, debouncedSearchText, showSavedOnly, savedBookIds]);
 
   const getFormatColor = useCallback((format?: string) => {
     switch (format) {
@@ -194,20 +240,18 @@ export default function Books() {
           <Text style={styles.formatText}>{book.format || 'PDF'}</Text>
         </View>
 
-        {/* Favorite Badge */}
-        {book.isFavorite && (
-          <TouchableOpacity style={styles.favoriteButton}>
-            <Ionicons name="heart" size={14} color="#FF6B00" />
-          </TouchableOpacity>
-        )}
+        {/* Favorite Toggle */}
+        <TouchableOpacity style={styles.favoriteButton} onPress={() => toggleSaveBook(book.id)}>
+          <Ionicons name={savedBookIds.includes(book.id) ? "heart" : "heart-outline"} size={14} color="#FF6B00" />
+        </TouchableOpacity>
 
         {/* Quick Action Overlay */}
         <View style={styles.quickActions}>
           <TouchableOpacity style={styles.quickActionButton}>
             <Ionicons name="eye-outline" size={14} color="#FFFFFF" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionButton}>
-            <Ionicons name="bookmark-outline" size={14} color="#FFFFFF" />
+          <TouchableOpacity style={styles.quickActionButton} onPress={() => toggleSaveBook(book.id)}>
+            <Ionicons name={savedBookIds.includes(book.id) ? "bookmark" : "bookmark-outline"} size={14} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -259,7 +303,7 @@ export default function Books() {
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
-  ), [cardWidth, handleReadBook, getFormatColor]);
+  ), [cardWidth, handleReadBook, getFormatColor, savedBookIds]);
 
   if (loading) {
     return (
@@ -296,9 +340,14 @@ export default function Books() {
                 <Text style={styles.headerTitle}>Srila Prabhupada's Books</Text>
                 <Text style={styles.headerSubtitle}>{books.length} sacred texts available</Text>
               </View>
-              <TouchableOpacity style={styles.headerAction} onPress={openFiltersModal}>
-                <Ionicons name="heart-outline" size={20} color="#FF6B00" />
-              </TouchableOpacity>
+              <View style={styles.headerActionsRow}>
+                <TouchableOpacity style={styles.headerAction} onPress={() => setShowSavedOnly(prev => !prev)}>
+                  <Ionicons name={showSavedOnly ? 'heart' : 'heart-outline'} size={20} color="#FF6B00" />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.headerAction} onPress={openFiltersModal}>
+                  <Ionicons name="funnel-outline" size={20} color="#FF6B00" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Spiritual Quote */}
@@ -516,6 +565,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
     shadowRadius: 4,
+  },
+  headerActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 
   // Quote Section
